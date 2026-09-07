@@ -1,0 +1,157 @@
+{
+  "pages": [
+    {
+      "id": "screens",
+      "name": "Screens"
+    },
+    {
+      "id": "components",
+      "name": "Components"
+    },
+    {
+      "id": "plans",
+      "name": "Floor plans"
+    }
+  ],
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "title": "1 · Main — live, Tue 10:47",
+      "x": 0,
+      "y": 0,
+      "w": 1920,
+      "h": 1080,
+      "page": "screens"
+    },
+    {
+      "file": "Floor2Focus.dc.html",
+      "title": "2 · Floor 2 focused · room 213",
+      "x": 2040,
+      "y": 0,
+      "w": 1920,
+      "h": 1080,
+      "page": "screens"
+    },
+    {
+      "file": "Search.dc.html",
+      "title": "3 · Search ⌘K · ПО2308",
+      "x": 0,
+      "y": 1240,
+      "w": 1920,
+      "h": 1080,
+      "page": "screens"
+    },
+    {
+      "file": "TimeTravel.dc.html",
+      "title": "4 · Time travel · 14:05 simulated",
+      "x": 2040,
+      "y": 1240,
+      "w": 1920,
+      "h": 1080,
+      "page": "screens"
+    },
+    {
+      "file": "AfterHours.dc.html",
+      "title": "6 · After hours · 21:30",
+      "x": 0,
+      "y": 2480,
+      "w": 1920,
+      "h": 1080,
+      "page": "screens"
+    },
+    {
+      "file": "Reconnecting.dc.html",
+      "title": "7a · Reconnecting",
+      "x": 2040,
+      "y": 2480,
+      "w": 1920,
+      "h": 1080,
+      "page": "screens"
+    },
+    {
+      "file": "ApiDown.dc.html",
+      "title": "7b · API down",
+      "x": 0,
+      "y": 3720,
+      "w": 1920,
+      "h": 1080,
+      "page": "screens"
+    },
+    {
+      "file": "Compact720.dc.html",
+      "title": "8 · 1280×720 — nothing scrolls",
+      "x": 2040,
+      "y": 3720,
+      "w": 1280,
+      "h": 720,
+      "page": "screens"
+    },
+    {
+      "file": "Kiosk4K.dc.html",
+      "title": "5 · Kiosk 3840×2160 · floor auto-rotate",
+      "x": 0,
+      "y": 4960,
+      "w": 3840,
+      "h": 2160,
+      "page": "screens"
+    },
+    {
+      "file": "Components.dc.html",
+      "title": "9 · Component sheet",
+      "x": 0,
+      "y": 0,
+      "w": 1920,
+      "h": 1740,
+      "page": "components"
+    },
+    {
+      "file": "Motion.dc.html",
+      "title": "Motion sheet",
+      "x": 2040,
+      "y": 0,
+      "w": 1200,
+      "h": 860,
+      "page": "components"
+    },
+    {
+      "file": "FloorPlan1.dc.html",
+      "title": "10a · Floor 1 — flat plan (SVG source)",
+      "x": 0,
+      "y": 0,
+      "w": 600,
+      "h": 1000,
+      "page": "plans"
+    },
+    {
+      "file": "FloorPlan2.dc.html",
+      "title": "10b · Floor 2 — flat plan (SVG source)",
+      "x": 720,
+      "y": 0,
+      "w": 600,
+      "h": 1000,
+      "page": "plans"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "brief",
+      "x": 0,
+      "y": -170,
+      "w": 720,
+      "page": "screens",
+      "text": "CampusLive — airport-board + 2.5D map, one screen, no scrolling.\nHero is artboard 1: iterate here first, every other screen inherits from it.\nBuilding silhouette traced from the floor-plan photos; rooms are invented (Appendix A)."
+    },
+    {
+      "id": "plans-note",
+      "x": 0,
+      "y": -150,
+      "w": 560,
+      "page": "plans",
+      "text": "Flat plans at 600×1000 units — the SVG source for the map.\nLayer names: outline · zone-hall · zone-north · zone-south · room-<code> · core-n · core-s · entrance-w · entrance-e · atrium.\nClean SVG files exported alongside (floor-1.svg … floor-4.svg)."
+    }
+  ],
+  "launch": {
+    "view": "canvas",
+    "page": "screens"
+  }
+}

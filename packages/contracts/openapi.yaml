@@ -1,0 +1,1434 @@
+openapi: 3.1.0
+
+info:
+  title: CampusLive API
+  version: 1.0.0
+  description: |
+    CampusLive — a realtime "airport departures board" and 2.5D map for a university building.
+
+    ## Source of truth
+    The Go engine (`services/api/internal/engine`) is the only place that computes session
+    phases and room states. Clients derive nothing but cosmetics (progress percentage,
+    countdown text) from the absolute timestamps in this contract.
+
+    ## Time
+    Every `date-time` in this contract is an absolute instant serialised as RFC 3339 in UTC.
+    Every `date` (`YYYY-MM-DD`) is a **local building date**, resolved through
+    `Building.timezone`. Server "now" is produced by the configurable `Clock`
+    (`real` / `fixed` / `offset`) — see `GET /api/v1/time`.
+
+    ## Caching
+    `GET /buildings/{code}/map` and `GET /buildings/{code}/board` return a strong `ETag`.
+    Send it back as `If-None-Match` to get `304 Not Modified`.
+
+    ## Errors
+    Every non-2xx response uses the envelope `{ "error": { "code": "...", "message": "..." } }`
+    with `code` drawn from: `not_found`, `bad_request`, `unauthorized`, `conflict`, `internal`.
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: buildings
+    description: Buildings, floor geometry and the live board
+  - name: schedule
+    description: Per-room / per-teacher / per-group day views and search
+  - name: realtime
+    description: Server-Sent Events and server clock
+  - name: admin
+    description: Demo admin API (X-Api-Key)
+  - name: ops
+    description: Liveness and readiness
+
+paths:
+  /healthz:
+    get:
+      operationId: healthz
+      tags: [ops]
+      summary: Liveness probe
+      description: Returns 200 as long as the process is running. Never touches the database.
+      security: []
+      responses:
+        "200":
+          description: Process is alive.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+
+  /readyz:
+    get:
+      operationId: readyz
+      tags: [ops]
+      summary: Readiness probe
+      description: Returns 200 once the database is reachable and the first snapshot has been built.
+      security: []
+      responses:
+        "200":
+          description: Service is ready to serve traffic.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ready"
+        "503":
+          description: Service is not ready yet.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ready"
+
+  /api/v1/buildings:
+    get:
+      operationId: listBuildings
+      security: []   # public, read-only
+      tags: [buildings]
+      summary: List buildings
+      responses:
+        "200":
+          description: All known buildings.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Building"
+
+  /api/v1/buildings/{code}/map:
+    get:
+      operationId: getBuildingMap
+      security: []   # public, read-only
+      tags: [buildings]
+      summary: Floor geometry of a building
+      description: |
+        The full `MapSpec` for a building: every floor with its outline, zones, corridors,
+        rooms (SVG path, bbox, label anchor), cores, landmarks and entrances.
+
+        This document is generated from `packages/map-data/svg/floor-{n}.svg` by
+        `pnpm map:build` into `packages/map-data/building-a.json` and seeded into the
+        database, so the rendered map and the room table can never drift apart.
+        The payload is immutable between deploys and carries a strong `ETag`.
+      parameters:
+        - $ref: "#/components/parameters/BuildingCodePath"
+        - $ref: "#/components/parameters/IfNoneMatch"
+      responses:
+        "200":
+          description: Floor geometry.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Cache-Control:
+              $ref: "#/components/headers/CacheControl"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MapSpec"
+        "304":
+          $ref: "#/components/responses/NotModified"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/buildings/{code}/board:
+    get:
+      operationId: getBoard
+      security: []   # public, read-only
+      tags: [buildings]
+      summary: Board snapshot
+      description: |
+        The complete board state at an instant: statistics, the live state of every room,
+        the `NOW` list (phase `live` or `ending`, sorted by `endAt`) and the `NEXT` list
+        (phase `soon` or `upcoming` starting within the 90-minute horizon, sorted by `startAt`).
+
+        Used for server-side rendering of the first frame, for time travel (`at`) and as the
+        payload of the SSE `snapshot` event. Without `at` and `date` the server uses its own
+        `Clock` "now".
+      parameters:
+        - $ref: "#/components/parameters/BuildingCodePath"
+        - $ref: "#/components/parameters/AtQuery"
+        - $ref: "#/components/parameters/DateQuery"
+        - $ref: "#/components/parameters/IfNoneMatch"
+      responses:
+        "200":
+          description: Board snapshot.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Snapshot"
+        "304":
+          $ref: "#/components/responses/NotModified"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/buildings/{code}/timeline:
+    get:
+      operationId: getTimeline
+      security: []   # public, read-only
+      tags: [buildings]
+      summary: All sessions of one day
+      description: |
+        Every materialised session of the given local building date, sorted by `startAt`.
+        Backs the time-travel scrubber (slot ticks and the occupancy heat strip) and the
+        room detail panel. Defaults to the current local building date.
+      parameters:
+        - $ref: "#/components/parameters/BuildingCodePath"
+        - $ref: "#/components/parameters/DateQuery"
+      responses:
+        "200":
+          description: Day timeline.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Timeline"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/rooms/{code}/day:
+    get:
+      operationId: getRoomDay
+      security: []   # public, read-only
+      tags: [schedule]
+      summary: Sessions of one room for a day
+      description: |
+        Sessions that take place in this room on the given date, sorted by `startAt`.
+        A session moved *into* this room appears here (its `roomCode` equals `code`);
+        a session moved *out of* it does not.
+      parameters:
+        - name: code
+          in: path
+          required: true
+          description: Room code, e.g. `213`, `WC-N1`, `CORE-S2`.
+          schema:
+            type: string
+            examples: ["213"]
+        - $ref: "#/components/parameters/DateQuery"
+      responses:
+        "200":
+          description: Sessions of the room.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DaySessions"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/teachers/{id}/day:
+    get:
+      operationId: getTeacherDay
+      security: []   # public, read-only
+      tags: [schedule]
+      summary: Sessions of one teacher for a day
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Teacher id.
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/DateQuery"
+      responses:
+        "200":
+          description: Sessions of the teacher.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DaySessions"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/groups/{code}/day:
+    get:
+      operationId: getGroupDay
+      security: []   # public, read-only
+      tags: [schedule]
+      summary: Sessions of one student group for a day
+      parameters:
+        - name: code
+          in: path
+          required: true
+          description: Student group code, e.g. `ПО2308`.
+          schema:
+            type: string
+            examples: ["ПО2308"]
+        - $ref: "#/components/parameters/DateQuery"
+      responses:
+        "200":
+          description: Sessions of the group.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DaySessions"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/search:
+    get:
+      operationId: search
+      security: []   # public, read-only
+      tags: [schedule]
+      summary: Unified search
+      description: |
+        Case-insensitive prefix/substring search over teachers, student groups, rooms and
+        courses. At most 5 hits per kind unless `limit` says otherwise. Selecting a hit in
+        the UI highlights the matching rooms on the map and filters the board.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query (at least 1 character).
+          schema:
+            type: string
+            minLength: 1
+            examples: ["ПО2308"]
+        - name: limit
+          in: query
+          required: false
+          description: Maximum hits per kind. Defaults to 5.
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 25
+            default: 5
+      responses:
+        "200":
+          description: Search hits grouped by kind.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/v1/events:
+    get:
+      operationId: streamEvents
+      security: []   # public, read-only
+      tags: [realtime]
+      summary: Server-Sent Events stream
+      description: |
+        A `text/event-stream` of board updates for one building. The connection stays open;
+        the server never buffers (Caddy is configured with `flush_interval -1`).
+
+        Event names and their `data` payloads:
+
+        | event | data | when |
+        |---|---|---|
+        | `snapshot` | a `Snapshot` object | immediately on connect, on every phase transition, and after every admin override |
+        | `announcement` | an `Announcement` object | when a new ticker announcement is posted |
+        | `heartbeat` | `{ "at": "<RFC3339 date-time>" }` | every 25 seconds, so proxies keep the connection open |
+
+        Clients that see no `heartbeat` for 30 s should treat the connection as
+        `reconnecting`. `EventSource` reconnects on its own; after a reconnect the client
+        should refetch `GET /buildings/{code}/board` once, because snapshots are full states
+        and nothing is lost by re-reading one.
+      parameters:
+        - name: building
+          in: query
+          required: true
+          description: Building code to subscribe to.
+          schema:
+            type: string
+            examples: ["A"]
+      responses:
+        "200":
+          description: An open SSE stream.
+          headers:
+            Cache-Control:
+              description: Always `no-cache`.
+              schema:
+                type: string
+            Content-Type:
+              description: Always `text/event-stream`.
+              schema:
+                type: string
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: |
+                  A stream of SSE frames, for example:
+
+                  ```
+                  event: snapshot
+                  data: {"building":"A","at":"2026-09-08T05:47:00Z", ...}
+
+                  event: heartbeat
+                  data: {"at":"2026-09-08T05:47:25Z"}
+                  ```
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/time:
+    get:
+      operationId: getTime
+      security: []   # public, read-only
+      tags: [realtime]
+      summary: Server clock
+      description: |
+        The server's current instant and clock mode. The client uses it once at startup to
+        compute its own drift from the server, so the header clock and every countdown stay
+        in step with the engine even in `fixed` and `offset` demo modes.
+      responses:
+        "200":
+          description: Server time and clock mode.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimeInfo"
+
+  /api/v1/admin/overrides:
+    post:
+      operationId: createOverride
+      tags: [admin]
+      summary: Create a session override
+      description: |
+        Demo admin API. Applies a point change to one date: `cancel`, `move`, `delay`,
+        `reassign_teacher` or `extra`. The board is invalidated and rebuilt immediately, so
+        every connected SSE client sees the result in under a second.
+
+        For every kind except `extra` the target session is identified by `lessonId` **or**
+        `sessionId` (`"{lessonId}:{date}"`). For `extra`, supply `courseCode`, `roomCode`,
+        `teacherId`, `slotIdx` and `groupCodes` instead.
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OverrideRequest"
+      responses:
+        "201":
+          description: The created override.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Override"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/admin/overrides/{id}:
+    delete:
+      operationId: deleteOverride
+      tags: [admin]
+      summary: Roll back an override
+      description: Deletes the override and rebuilds the board immediately.
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Override id returned by `createOverride`.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Override deleted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/admin/announcements:
+    post:
+      operationId: createAnnouncement
+      tags: [admin]
+      summary: Post a ticker announcement
+      description: |
+        Publishes a line to the bottom ticker of every connected client as an SSE
+        `announcement` event. When `startsAt` / `endsAt` are omitted the window is
+        `now … now + ttlMinutes`.
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnouncementRequest"
+      responses:
+        "201":
+          description: The created announcement.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Api-Key
+      description: Shared demo admin key (`ADMIN_API_KEY`). Required by the three `/admin/*` operations.
+
+  headers:
+    ETag:
+      description: Strong entity tag of the payload. Send it back as `If-None-Match`.
+      schema:
+        type: string
+    CacheControl:
+      description: Caching policy for this payload.
+      schema:
+        type: string
+
+  parameters:
+    BuildingCodePath:
+      name: code
+      in: path
+      required: true
+      description: Building code, e.g. `A`.
+      schema:
+        type: string
+        examples: ["A"]
+    AtQuery:
+      name: at
+      in: query
+      required: false
+      description: |
+        Absolute instant (RFC 3339) to evaluate the board at. Omit for the server's own "now".
+        Used by the time-travel scrubber.
+      schema:
+        type: string
+        format: date-time
+        examples: ["2026-09-08T05:47:00Z"]
+    DateQuery:
+      name: date
+      in: query
+      required: false
+      description: Local building date `YYYY-MM-DD`. Defaults to the building's current local date.
+      schema:
+        type: string
+        pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+        examples: ["2026-09-08"]
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      description: Previously received `ETag`. The server answers `304` when the payload is unchanged.
+      schema:
+        type: string
+
+  responses:
+    NotModified:
+      description: The payload has not changed since the supplied `ETag`.
+      headers:
+        ETag:
+          $ref: "#/components/headers/ETag"
+    BadRequest:
+      description: Malformed request. `error.code` is `bad_request`.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Missing or wrong `X-Api-Key`. `error.code` is `unauthorized`.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: No such building, room, teacher, group or override. `error.code` is `not_found`.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Conflict:
+      description: The request conflicts with existing data. `error.code` is `conflict`.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    # ---------------------------------------------------------------- errors --
+    ErrorBody:
+      type: object
+      description: Machine-readable error detail.
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Stable error code.
+          enum: [not_found, bad_request, unauthorized, conflict, internal]
+        message:
+          type: string
+          description: Human-readable explanation. Not localised; UI copy comes from the client.
+    Error:
+      type: object
+      description: The single error envelope used by every non-2xx response.
+      required: [error]
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorBody"
+
+    # ------------------------------------------------------------ vocabulary --
+    RoomType:
+      type: string
+      description: |
+        What a space is. Only `lecture`, `seminar`, `lab` and (rarely) `coworking` rooms are
+        ever `schedulable`; `void` spaces (the atrium, the double-height opening over the
+        Skywalkers lab) are drawn as holes in the slab and never carry a status.
+      enum: [lecture, seminar, lab, coworking, admin, service, void]
+    Wing:
+      type: string
+      description: Which part of the floor plate the space sits in.
+      enum: [north, south, core]
+    LessonType:
+      type: string
+      description: Pedagogical form of a session.
+      enum: [lecture, practice, lab]
+    SessionStatus:
+      type: string
+      description: |
+        What happened to a session as data, independent of the wall clock.
+        `moved` means the room changed; `delayed` means the times were shifted.
+      enum: [scheduled, cancelled, moved, delayed]
+    Phase:
+      type: string
+      description: |
+        Where a session sits relative to "now", computed by the Go engine:
+        `upcoming` → `soon` (within `SOON_WINDOW`, default 10 min) → `live` →
+        `ending` (last `ENDING_WINDOW`, default 5 min) → `done`.
+        A cancelled session is always `cancelled` and never occupies its room.
+      enum: [upcoming, soon, live, ending, done, cancelled]
+    RoomPhase:
+      type: string
+      description: |
+        The state of a room, derived from its owning session with priority
+        `live`/`ending` > `soon` > `free`.
+      enum: [free, soon, live, ending]
+    OverrideKind:
+      type: string
+      description: |
+        The kind of point change applied to one date.
+        `extra` adds a one-off session that has no lesson template.
+      enum: [cancel, move, delay, reassign_teacher, extra]
+    Severity:
+      type: string
+      description: Visual weight of a ticker announcement.
+      enum: [info, warning, alert]
+    ClockMode:
+      type: string
+      description: |
+        How the server produces "now": `real` = wall clock, `fixed` = always `CLOCK_FIXED_AT`
+        (e2e and screenshots), `offset` = wall clock shifted by `CLOCK_OFFSET` (demo).
+      enum: [real, fixed, offset]
+    WeekParity:
+      type: string
+      description: Parity of the current teaching week, counted from `semester.starts_on`.
+      enum: [odd, even]
+
+    # --------------------------------------------------------------- geometry --
+    Building:
+      type: object
+      description: One building of the campus.
+      required: [code, name, timezone, floors]
+      properties:
+        code:
+          type: string
+          description: Short unique code used everywhere in the API.
+          examples: ["A"]
+        name:
+          type: string
+          examples: ["Main Academic Building"]
+        timezone:
+          type: string
+          description: IANA time zone; every local date and slot time is resolved through it.
+          examples: ["Asia/Almaty"]
+        floors:
+          type: integer
+          format: int32
+          description: Number of floors.
+          examples: [4]
+
+    BBox:
+      type: object
+      description: Axis-aligned bounding box in the floor's `viewBox` coordinate system.
+      required: [x, y, w, h]
+      properties:
+        x:
+          type: number
+        y:
+          type: number
+        w:
+          type: number
+        h:
+          type: number
+
+    Point:
+      type: object
+      description: A point in the floor's `viewBox` coordinate system.
+      required: [x, y]
+      properties:
+        x:
+          type: number
+        y:
+          type: number
+
+    MapRoom:
+      type: object
+      description: |
+        One space on a floor, as geometry plus the attributes the seed writes into `rooms`.
+        `id` is a deterministic UUID v5 of `campuslive:room:{code}`, so the web app and the
+        database agree on room identity even before the database exists.
+      required: [id, code, name, type, wing, schedulable, path, bbox, label]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Deterministic UUID v5 derived from the room code.
+        code:
+          type: string
+          description: Unique room code within the building.
+          examples: ["213"]
+        name:
+          type: string
+          examples: ['Lecture Hall "Gamma"']
+        type:
+          $ref: "#/components/schemas/RoomType"
+        wing:
+          $ref: "#/components/schemas/Wing"
+        capacity:
+          type: integer
+          format: int32
+          description: Seats. Absent for spaces where capacity is meaningless (corridors, voids, cores).
+        schedulable:
+          type: boolean
+          description: Whether lessons may be placed here. Non-schedulable rooms are drawn but never coloured by status.
+        path:
+          type: string
+          description: SVG path data (`d`) of the room polygon, closed with `Z`.
+        bbox:
+          $ref: "#/components/schemas/BBox"
+        label:
+          $ref: "#/components/schemas/Point"
+
+    MapZone:
+      type: object
+      description: A tinted background band (wing or corridor). Purely decorative.
+      required: [id, path]
+      properties:
+        id:
+          type: string
+          examples: ["zone-hall"]
+        path:
+          type: string
+          description: SVG path data (`d`).
+
+    MapCore:
+      type: object
+      description: A vertical circulation core (stairs + elevators) on the east strip.
+      required: [id, code, name, path, bbox, label]
+      properties:
+        id:
+          type: string
+          description: Position of the core on the plate.
+          enum: [core-n, core-s]
+        code:
+          type: string
+          description: The room code the same core carries in `rooms`, e.g. `CORE-N2`.
+          examples: ["CORE-N2"]
+        name:
+          type: string
+          examples: ["Stairs SF-1 + Elevators"]
+        path:
+          type: string
+          description: SVG path data (`d`).
+        bbox:
+          $ref: "#/components/schemas/BBox"
+        label:
+          $ref: "#/components/schemas/Point"
+
+    MapLandmark:
+      type: object
+      description: A glyph anchor on the plan (stairs, elevator, …).
+      required: [kind, id, x, y]
+      properties:
+        kind:
+          type: string
+          description: Glyph family, e.g. `stairs`.
+          examples: ["stairs"]
+        id:
+          type: string
+          examples: ["stairs-sf1"]
+        x:
+          type: number
+        y:
+          type: number
+
+    MapEntrance:
+      type: object
+      description: A door in the façade. `x`/`y` is the centroid of `path`.
+      required: [id, x, y, main, path]
+      properties:
+        id:
+          type: string
+          examples: ["entrance-w"]
+        x:
+          type: number
+        y:
+          type: number
+        main:
+          type: boolean
+          description: True for the main (west) entrance.
+        path:
+          type: string
+          description: SVG path data (`d`).
+
+    MapFloor:
+      type: object
+      description: One floor plate.
+      required: [number, planKey, outline, zones, corridors, rooms, cores, landmarks, entrances]
+      properties:
+        number:
+          type: integer
+          format: int32
+          examples: [2]
+        planKey:
+          type: string
+          description: Key linking the geometry to the `floors.plan_key` column.
+          examples: ["a-f2"]
+        outline:
+          type: string
+          description: SVG path data (`d`) of the floor slab silhouette.
+        zones:
+          type: array
+          items:
+            $ref: "#/components/schemas/MapZone"
+        corridors:
+          type: array
+          items:
+            $ref: "#/components/schemas/MapZone"
+        rooms:
+          type: array
+          description: Every space on the floor, including cores and voids.
+          items:
+            $ref: "#/components/schemas/MapRoom"
+        cores:
+          type: array
+          items:
+            $ref: "#/components/schemas/MapCore"
+        landmarks:
+          type: array
+          items:
+            $ref: "#/components/schemas/MapLandmark"
+        entrances:
+          type: array
+          items:
+            $ref: "#/components/schemas/MapEntrance"
+        atrium:
+          type: string
+          description: SVG path data (`d`) of the atrium void. Present on floor 2 only.
+
+    MapSpec:
+      type: object
+      description: |
+        The full geometry of a building. Generated by `pnpm map:build` from
+        `packages/map-data/svg/floor-{n}.svg` into `packages/map-data/building-a.json`;
+        served verbatim by `getBuildingMap` and read by `cmd/seed`.
+      required: [building, name, timezone, viewBox, floors]
+      properties:
+        building:
+          type: string
+          description: Building code.
+          examples: ["A"]
+        name:
+          type: string
+          examples: ["Main Academic Building"]
+        timezone:
+          type: string
+          examples: ["Asia/Almaty"]
+        viewBox:
+          type: array
+          description: SVG viewBox as `[minX, minY, width, height]`, shared by every floor.
+          items:
+            type: number
+          minItems: 4
+          maxItems: 4
+          examples: [[0, 0, 600, 1000]]
+        floors:
+          type: array
+          items:
+            $ref: "#/components/schemas/MapFloor"
+
+    # --------------------------------------------------------------- sessions --
+    TeacherRef:
+      type: object
+      description: Compact teacher reference embedded in session views.
+      required: [id, shortName]
+      properties:
+        id:
+          type: string
+          format: uuid
+        shortName:
+          type: string
+          description: Board-sized name, e.g. `Ахметов Д.Б.`
+          examples: ["Ахметов Д.Б."]
+        fullName:
+          type: string
+        department:
+          type: string
+
+    SessionView:
+      type: object
+      description: |
+        One materialised session as the board and the map show it.
+
+        **Room semantics.** `roomId` / `roomCode` / `floor` always describe the **effective**
+        room — where the session actually happens. For a session with `status = moved`,
+        `movedFromRoomCode` holds the original room; the board keeps the row in the original
+        room's column and renders a `MOVED → {roomCode}` pill, while the map colours the new room.
+
+        **Time semantics.** `startAt` / `endAt` are absolute UTC instants that already include
+        any delay (`status = delayed`, `delayMinutes` says by how much). Clients must not
+        re-apply the delay.
+
+        **Identity.** `sessionId` is `"{lessonId}:{date}"` for a templated session and
+        `"x:{overrideId}"` for an `extra` one; `lessonId` is absent for `extra` sessions.
+      required:
+        - sessionId
+        - courseCode
+        - courseTitle
+        - lessonType
+        - teacher
+        - groups
+        - roomId
+        - roomCode
+        - floor
+        - startAt
+        - endAt
+        - status
+        - phase
+        - conflict
+      properties:
+        sessionId:
+          type: string
+          description: '`"{lessonId}:{date}"`, or `"x:{overrideId}"` for an extra session.'
+          examples: ["8f1c...:2026-09-08"]
+        lessonId:
+          type: string
+          format: uuid
+          description: The lesson template this session comes from. Absent for `extra` sessions.
+        courseCode:
+          type: string
+          examples: ["CS201"]
+        courseTitle:
+          type: string
+          examples: ["Databases"]
+        lessonType:
+          $ref: "#/components/schemas/LessonType"
+        teacher:
+          $ref: "#/components/schemas/TeacherRef"
+        groups:
+          type: array
+          description: Student group codes attending, in display order.
+          items:
+            type: string
+          examples: [["ПО2308", "ПО2309"]]
+        roomId:
+          type: string
+          format: uuid
+          description: Effective room id (after a move).
+        roomCode:
+          type: string
+          description: Effective room code (after a move).
+          examples: ["214"]
+        floor:
+          type: integer
+          format: int32
+          description: Floor of the effective room.
+        startAt:
+          type: string
+          format: date-time
+          description: Absolute start, delay already applied.
+        endAt:
+          type: string
+          format: date-time
+          description: Absolute end, delay already applied.
+        status:
+          $ref: "#/components/schemas/SessionStatus"
+        phase:
+          $ref: "#/components/schemas/Phase"
+        conflict:
+          type: boolean
+          description: True when another session overlaps the same room; the earlier start owns the room.
+        movedFromRoomCode:
+          type: string
+          description: Original room code when `status = moved`.
+          examples: ["213"]
+        delayMinutes:
+          type: integer
+          format: int32
+          description: Minutes the session was pushed back when `status = delayed`.
+        note:
+          type: string
+          description: Free-text note attached by the override that changed this session.
+
+    RoomLiveState:
+      type: object
+      description: |
+        The live state of one room. `current` is the session owning the room right now,
+        `next` the following one today. `freeUntil` is the start of `next` when the room is
+        free, and `null` when the room is busy or has nothing left today.
+      required: [roomId, roomCode, floor, phase]
+      properties:
+        roomId:
+          type: string
+          format: uuid
+        roomCode:
+          type: string
+          examples: ["213"]
+        floor:
+          type: integer
+          format: int32
+        phase:
+          $ref: "#/components/schemas/RoomPhase"
+        current:
+          $ref: "#/components/schemas/SessionView"
+        next:
+          $ref: "#/components/schemas/SessionView"
+        freeUntil:
+          type: string
+          format: date-time
+          description: |
+            When the free room is taken next. Nullable: the server sends `null` (and Go emits a
+            nil pointer) when the room is busy or has nothing left today. Not expressed as a
+            `["string","null"]` union because `oapi-codegen` cannot yet generate 3.1 type unions.
+
+    Stats:
+      type: object
+      description: Header and legend counters.
+      required: [roomsTotal, roomsBusy, sessionsToday, sessionsDone]
+      properties:
+        roomsTotal:
+          type: integer
+          format: int32
+          description: Number of schedulable rooms in the building.
+        roomsBusy:
+          type: integer
+          format: int32
+          description: Schedulable rooms whose phase is `live` or `ending`.
+        sessionsToday:
+          type: integer
+          format: int32
+        sessionsDone:
+          type: integer
+          format: int32
+
+    Snapshot:
+      type: object
+      description: |
+        The complete board state at `at`. Sent as the body of `getBoard` and as the payload of
+        the SSE `snapshot` event — always a full state, never a delta, so a dropped message
+        costs nothing.
+      required:
+        - building
+        - at
+        - date
+        - weekNumber
+        - weekParity
+        - stats
+        - rooms
+        - now
+        - next
+      properties:
+        building:
+          type: string
+          examples: ["A"]
+        at:
+          type: string
+          format: date-time
+          description: The instant this snapshot describes.
+        date:
+          type: string
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+          description: Local building date of `at`. Shown in the header.
+          examples: ["2026-09-08"]
+        weekNumber:
+          type: integer
+          format: int32
+          description: 1-based teaching week counted from `semester.starts_on`.
+          examples: [3]
+        weekParity:
+          $ref: "#/components/schemas/WeekParity"
+        nextTransitionAt:
+          type: string
+          format: date-time
+          description: |
+            The earliest instant after `at` at which any session crosses a phase boundary.
+            The scheduler sleeps until then (capped at 5 minutes). Nullable: `null` when nothing
+            is left to happen today.
+        stats:
+          $ref: "#/components/schemas/Stats"
+        rooms:
+          type: array
+          description: Live state of every room of the building, schedulable or not.
+          items:
+            $ref: "#/components/schemas/RoomLiveState"
+        now:
+          type: array
+          description: Sessions in phase `live` or `ending`, sorted by `endAt`.
+          items:
+            $ref: "#/components/schemas/SessionView"
+        next:
+          type: array
+          description: Sessions in phase `soon` or `upcoming` starting within the 90-minute horizon (cancelled and moved ones included), sorted by `startAt`.
+          items:
+            $ref: "#/components/schemas/SessionView"
+
+    Timeline:
+      type: object
+      description: Every session of one building on one local date, sorted by `startAt`.
+      required: [building, date, sessions]
+      properties:
+        building:
+          type: string
+          examples: ["A"]
+        date:
+          type: string
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+          examples: ["2026-09-08"]
+        sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/SessionView"
+
+    DaySessions:
+      type: object
+      description: Sessions of one room, teacher or group on one local date, sorted by `startAt`.
+      required: [date, sessions]
+      properties:
+        date:
+          type: string
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+          examples: ["2026-09-08"]
+        sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/SessionView"
+
+    # ----------------------------------------------------------------- search --
+    SearchTeacher:
+      type: object
+      required: [id, shortName]
+      properties:
+        id:
+          type: string
+          format: uuid
+        shortName:
+          type: string
+          examples: ["Ахметов Д.Б."]
+        fullName:
+          type: string
+        department:
+          type: string
+
+    SearchGroup:
+      type: object
+      required: [id, code]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          examples: ["ПО2308"]
+        program:
+          type: string
+        courseYear:
+          type: integer
+          format: int32
+
+    SearchRoom:
+      type: object
+      required: [id, code, name, floor, type]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          examples: ["213"]
+        name:
+          type: string
+        floor:
+          type: integer
+          format: int32
+        type:
+          $ref: "#/components/schemas/RoomType"
+
+    SearchCourse:
+      type: object
+      required: [id, code, title]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          examples: ["CS201"]
+        title:
+          type: string
+
+    SearchResult:
+      type: object
+      description: Search hits grouped by kind. Every array is present, possibly empty.
+      required: [teachers, groups, rooms, courses]
+      properties:
+        teachers:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchTeacher"
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchGroup"
+        rooms:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchRoom"
+        courses:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchCourse"
+
+    # ------------------------------------------------------------------ clock --
+    TimeInfo:
+      type: object
+      description: Server "now" and how it is produced.
+      required: [now, mode, timezone]
+      properties:
+        now:
+          type: string
+          format: date-time
+          description: The server's current instant according to the configured `Clock`.
+        mode:
+          $ref: "#/components/schemas/ClockMode"
+        offset:
+          type: string
+          description: Go duration applied in `offset` mode, e.g. `-3h20m`.
+          examples: ["-3h20m"]
+        timezone:
+          type: string
+          description: IANA time zone of the default building.
+          examples: ["Asia/Almaty"]
+
+    # ------------------------------------------------------------------ admin --
+    OverrideRequest:
+      type: object
+      description: |
+        A point change for one local date.
+
+        * `cancel` — target session only.
+        * `move` — target session + `newRoomCode`.
+        * `delay` — target session + `delayMinutes`.
+        * `reassign_teacher` — target session + `newTeacherId`.
+        * `extra` — no target; supply `courseCode`, `roomCode`, `teacherId`, `slotIdx` and `groupCodes`.
+
+        For every kind except `extra`, the target session is identified by `lessonId` **or**
+        `sessionId`; supplying neither is a `bad_request`.
+      required: [date, kind]
+      properties:
+        date:
+          type: string
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+          description: Local building date the change applies to.
+          examples: ["2026-09-08"]
+        kind:
+          $ref: "#/components/schemas/OverrideKind"
+        lessonId:
+          type: string
+          format: uuid
+          description: Target lesson template. One of `lessonId` / `sessionId` is required for non-`extra` kinds.
+        sessionId:
+          type: string
+          description: Target session id (`"{lessonId}:{date}"`). Alternative to `lessonId`.
+        newRoomCode:
+          type: string
+          description: Required for `move`.
+          examples: ["214"]
+        newTeacherId:
+          type: string
+          format: uuid
+          description: Required for `reassign_teacher`.
+        delayMinutes:
+          type: integer
+          format: int32
+          description: Required for `delay`. Positive minutes.
+          examples: [15]
+        courseCode:
+          type: string
+          description: Required for `extra`.
+          examples: ["CS201"]
+        roomCode:
+          type: string
+          description: Required for `extra`.
+          examples: ["213"]
+        teacherId:
+          type: string
+          format: uuid
+          description: Required for `extra`.
+        slotIdx:
+          type: integer
+          format: int32
+          description: Required for `extra`. 1-based time-slot index of the building.
+          examples: [4]
+        groupCodes:
+          type: array
+          description: Student groups attending an `extra` session.
+          items:
+            type: string
+          examples: [["ПО2308"]]
+        note:
+          type: string
+          description: Free-text note surfaced on the board row and in the room panel.
+
+    Override:
+      type: object
+      description: A stored override.
+      required: [id, date, kind, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        lessonId:
+          type: string
+          format: uuid
+          description: Absent for `extra` overrides.
+        date:
+          type: string
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+          examples: ["2026-09-08"]
+        kind:
+          $ref: "#/components/schemas/OverrideKind"
+        newRoomCode:
+          type: string
+        newTeacherId:
+          type: string
+          format: uuid
+        delayMinutes:
+          type: integer
+          format: int32
+        courseCode:
+          type: string
+        roomCode:
+          type: string
+        slotIdx:
+          type: integer
+          format: int32
+        note:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    AnnouncementRequest:
+      type: object
+      description: A new ticker line. Omit `startsAt`/`endsAt` to use `now … now + ttlMinutes`.
+      required: [text]
+      properties:
+        building:
+          type: string
+          description: Building code. Defaults to `A`.
+          default: "A"
+          examples: ["A"]
+        text:
+          type: string
+          minLength: 1
+          examples: ["Open lecture in the Assembly Hall at 18:00"]
+        severity:
+          $ref: "#/components/schemas/Severity"
+        startsAt:
+          type: string
+          format: date-time
+          description: Start of the display window. Defaults to now.
+        endsAt:
+          type: string
+          format: date-time
+          description: End of the display window. Defaults to `startsAt + ttlMinutes`.
+        ttlMinutes:
+          type: integer
+          format: int32
+          description: Display duration in minutes when `endsAt` is omitted.
+          default: 30
+          examples: [30]
+
+    Announcement:
+      type: object
+      description: A ticker line. Also the payload of the SSE `announcement` event.
+      required: [id, building, text, severity, startsAt, endsAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        building:
+          type: string
+          examples: ["A"]
+        text:
+          type: string
+        severity:
+          $ref: "#/components/schemas/Severity"
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+
+    # -------------------------------------------------------------------- ops --
+    Health:
+      type: object
+      description: Liveness payload.
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+
+    Ready:
+      type: object
+      description: Readiness payload; `status` is `ok` only when both checks pass.
+      required: [status, db, snapshot]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        db:
+          type: boolean
+          description: The database answered a ping.
+        snapshot:
+          type: boolean
+          description: The first board snapshot has been built.

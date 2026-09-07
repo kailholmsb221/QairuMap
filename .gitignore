@@ -1,0 +1,36 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+.next/
+out/
+dist/
+.turbo/
+
+# tests
+coverage/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# go
+services/api/bin/
+
+# env & local
+.env
+.env.local
+.env.*.local
+!infra/.env.example
+
+# editors / os
+.DS_Store
+*.log
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# NOTE: generated TypeScript types (packages/contracts/src/types.gen.ts) and the
+# generated map artifact (packages/map-data/building-a.json) ARE committed on
+# purpose — both teams consume them without running a build first.

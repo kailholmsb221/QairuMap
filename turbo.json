@@ -1,0 +1,38 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "stream",
+  "globalDependencies": ["**/.env.*local", ".npmrc"],
+  "globalEnv": ["NODE_ENV", "NEXT_PUBLIC_API_URL", "API_URL", "ADMIN_API_KEY"],
+  "tasks": {
+    "contracts:generate": {
+      "inputs": ["openapi.yaml"],
+      "outputs": ["src/types.gen.ts"]
+    },
+    "map:build": {
+      "inputs": ["svg/**", "scripts/**", "schema.json"],
+      "outputs": ["building-a.json"]
+    },
+    "build": {
+      "dependsOn": ["^build", "^contracts:generate", "^map:build"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "dependsOn": ["^build"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build", "^contracts:generate", "^map:build"]
+    },
+    "test": {
+      "dependsOn": ["^build", "^contracts:generate"]
+    },
+    "e2e": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "outputs": ["playwright-report/**", "test-results/**"]
+    }
+  }
+}

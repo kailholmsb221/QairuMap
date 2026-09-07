@@ -1,0 +1,52 @@
+/* CampusLive design tokens — dark theme (primary) */
+:root {
+  --bg: #0B0F17;
+  --bg-elev: #111826;
+  --panel: rgba(255,255,255,.04);
+  --line: rgba(255,255,255,.08);
+  --text: #E6EAF2;
+  --text-dim: #8B94A7;
+  --accent: #5EEAD4;
+
+  --status-live: #2DD4BF;
+  --status-soon: #FBBF24;
+  --status-ending: #FB923C;
+  --status-cancelled: #F87171;
+  --status-moved: #A78BFA;
+  --status-delayed: #F59E0B;
+
+  --room-free: rgba(255,255,255,.10);
+  --room-live: rgba(45,212,191,.45);
+  --room-ending: rgba(251,146,60,.45);
+  --room-soon: rgba(251,191,36,.35);
+  --room-service: rgba(255,255,255,.025);
+
+  --wing-north: rgba(96,165,250,.06);
+  --wing-south: rgba(244,114,182,.06);
+  --wing-core: rgba(134,239,172,.05);
+
+  --slab: #161E2E;
+  --slab-edge: #0A0E16;
+  --slab-top: rgba(255,255,255,.12);
+
+  --font-ui: "Manrope", "Inter", system-ui, sans-serif;
+  --font-board: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+
+  --radius: 12px;
+  --radius-sm: 8px;
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --dur-fast: 150ms;
+  --dur-base: 300ms;
+  --dur-slow: 600ms;
+
+  /* layout at 1920×1080 */
+  --header-h: 64px;
+  --ticker-h: 40px;
+  --board-w: 560px;
+  --gutter: 16px;
+  --row-h: 60px;
+  --clock-size: 44px;
+  --row-title: 18px;
+  --row-sub: 13px;
+  --chip-font: 12px;
+}

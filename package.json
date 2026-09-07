@@ -1,0 +1,27 @@
+{
+  "name": "campuslive",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Single-screen realtime airport-style board + 2.5D map of a university building",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "e2e": "turbo run e2e",
+    "map:build": "turbo run map:build",
+    "contracts:generate": "turbo run contracts:generate",
+    "seed": "pnpm --filter @campuslive/map-data run build && cd services/api && go run ./cmd/seed",
+    "demo": "bash infra/scripts/demo.sh",
+    "demo:script": "node infra/scripts/demo-script.mjs"
+  },
+  "devDependencies": {
+    "turbo": "2.5.8",
+    "typescript": "5.9.3"
+  }
+}

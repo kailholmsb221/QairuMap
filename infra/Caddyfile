@@ -1,0 +1,38 @@
+{
+	admin off
+	auto_https off
+}
+
+:80 {
+	encode zstd gzip
+
+	# API + SSE. flush_interval -1 disables response buffering so
+	# `GET /api/v1/events` streams each event immediately.
+	handle /api/* {
+		reverse_proxy api:8080 {
+			flush_interval -1
+			transport http {
+				response_header_timeout 0
+				read_timeout 0
+			}
+		}
+	}
+
+	handle /healthz {
+		reverse_proxy api:8080
+	}
+
+	handle /readyz {
+		reverse_proxy api:8080
+	}
+
+	# Everything else is the Next.js app.
+	handle {
+		reverse_proxy web:3000
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

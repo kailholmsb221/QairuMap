@@ -1,0 +1,20 @@
+extends:
+  - recommended
+
+rules:
+  # Every operation is documented in ARCHITECTURE.md §9; per-operation `tags` and
+  # `summary` are present, but Redocly's `recommended` ruleset also wants
+  # descriptions on 2xx-only specs and info.contact, which this internal contract
+  # deliberately omits.
+  info-contact: off
+  info-license-strict: off
+  operation-4xx-response: off
+  # The only server is the local dev API; the portfolio deploy injects its own.
+  no-server-example.com: off
+  no-empty-servers: error
+  operation-operationId: error
+  operation-operationId-unique: error
+  operation-summary: error
+  no-unused-components: error
+  security-defined: error
+  struct: error

@@ -1,0 +1,182 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: "1.24"
+  NODE_VERSION: "22"
+  PNPM_VERSION: "10.28.0"
+
+jobs:
+  api:
+    name: api (Go)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: services/api/go.mod
+
+      # During Phase 0 `services/api` holds only go.mod; `go vet ./...` would fail
+      # with "matched no packages". Every step below activates the moment the
+      # backend engineer commits the first .go file.
+      - name: Detect Go sources
+        id: gosrc
+        working-directory: services/api
+        run: |
+          if [ -n "$(find . -name '*.go' -not -path './vendor/*' -print -quit)" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::services/api has no Go sources yet — skipping vet, test and lint."
+          fi
+
+      - name: go vet
+        if: steps.gosrc.outputs.present == 'true'
+        working-directory: services/api
+        run: go vet ./...
+
+      - name: go test -race
+        if: steps.gosrc.outputs.present == 'true'
+        working-directory: services/api
+        run: go test -race ./...
+
+      - name: golangci-lint
+        if: steps.gosrc.outputs.present == 'true'
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: services/api
+          args: --timeout=5m
+
+  web:
+    name: web (Node)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build map data
+        run: pnpm run map:build
+
+      - name: Generate contract types
+        run: pnpm run contracts:generate
+
+      # building-a.json and types.gen.ts are committed; a diff here means someone
+      # edited an SVG or openapi.yaml without regenerating.
+      - name: Fail if generated files drifted
+        run: git diff --exit-code -- packages/contracts/src/types.gen.ts packages/map-data/building-a.json
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Test
+        run: pnpm run test
+
+  e2e:
+    name: e2e (Playwright)
+    runs-on: ubuntu-latest
+    needs: [api, web]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: campuslive
+          POSTGRES_PASSWORD: campuslive
+          POSTGRES_DB: campuslive
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U campuslive -d campuslive"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://campuslive:campuslive@localhost:5432/campuslive?sslmode=disable
+      CLOCK_MODE: fixed
+      CLOCK_FIXED_AT: "2026-09-08T10:47:00+05:00"
+      ADMIN_API_KEY: ci-admin-key
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+      API_URL: http://localhost:8080
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: services/api/go.mod
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      # The e2e scenarios need both halves of the product. Until apps/web and
+      # cmd/seed exist, the job installs and stops.
+      - name: Detect e2e prerequisites
+        id: ready
+        run: |
+          if [ -f apps/web/package.json ] && [ -d services/api/cmd/seed ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::apps/web or services/api/cmd/seed is missing — skipping e2e."
+          fi
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build map data + contract types
+        run: pnpm run map:build && pnpm run contracts:generate
+
+      - name: Build
+        if: steps.ready.outputs.present == 'true'
+        run: pnpm run build
+
+      - name: Seed database
+        if: steps.ready.outputs.present == 'true'
+        run: pnpm run seed
+
+      - name: Install Playwright browsers
+        if: steps.ready.outputs.present == 'true'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run e2e
+        if: steps.ready.outputs.present == 'true'
+        run: pnpm run e2e
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && steps.ready.outputs.present == 'true' }}
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          retention-days: 7
+          if-no-files-found: ignore
