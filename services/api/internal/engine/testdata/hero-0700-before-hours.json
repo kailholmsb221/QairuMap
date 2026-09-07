@@ -1,0 +1,106 @@
+{
+  "building": "A",
+  "at": "2026-09-08T02:00:00Z",
+  "date": "2026-09-08",
+  "weekNumber": 3,
+  "weekParity": "odd",
+  "nextTransitionAt": "2026-09-08T04:50:00Z",
+  "stats": {
+    "RoomsTotal": 10,
+    "RoomsBusy": 0,
+    "SessionsToday": 13,
+    "SessionsDone": 0
+  },
+  "rooms": [
+    {
+      "code": "101",
+      "floor": 1,
+      "phase": "free",
+      "current": "",
+      "next": "bc814eaa-5814-5be0-84d6-4808cb16a211:2026-09-08",
+      "freeUntil": "2026-09-08T05:00:00Z"
+    },
+    {
+      "code": "110",
+      "floor": 1,
+      "phase": "free",
+      "current": "",
+      "next": "0d306776-6117-50db-af8c-0d674ddc4739:2026-09-08",
+      "freeUntil": "2026-09-08T05:00:00Z"
+    },
+    {
+      "code": "113",
+      "floor": 1,
+      "phase": "free",
+      "current": "",
+      "next": "",
+      "freeUntil": null
+    },
+    {
+      "code": "205",
+      "floor": 2,
+      "phase": "free",
+      "current": "",
+      "next": "260705d6-c6c0-5420-9127-c69cef1ef95b:2026-09-08",
+      "freeUntil": "2026-09-08T07:00:00Z"
+    },
+    {
+      "code": "213",
+      "floor": 2,
+      "phase": "free",
+      "current": "",
+      "next": "94d1f406-7dba-58a2-ab3c-36ef6b11e2ea:2026-09-08",
+      "freeUntil": "2026-09-08T05:00:00Z"
+    },
+    {
+      "code": "216",
+      "floor": 2,
+      "phase": "free",
+      "current": "",
+      "next": "023adeac-2b53-593e-ad6b-27ea6a032b8e:2026-09-08",
+      "freeUntil": "2026-09-08T05:00:00Z"
+    },
+    {
+      "code": "303",
+      "floor": 3,
+      "phase": "free",
+      "current": "",
+      "next": "8d4476b0-0e92-5491-b403-6398d06e7055:2026-09-08",
+      "freeUntil": "2026-09-08T06:00:00Z"
+    },
+    {
+      "code": "305",
+      "floor": 3,
+      "phase": "free",
+      "current": "",
+      "next": "27c46e0e-840e-59b1-853d-471231b3faf2:2026-09-08",
+      "freeUntil": "2026-09-08T05:00:00Z"
+    },
+    {
+      "code": "313",
+      "floor": 3,
+      "phase": "free",
+      "current": "",
+      "next": "22d7c1bf-5440-5396-8cab-8ef92d8993ae:2026-09-08",
+      "freeUntil": "2026-09-08T05:15:00Z"
+    },
+    {
+      "code": "412",
+      "floor": 4,
+      "phase": "free",
+      "current": "",
+      "next": "7f0d21ff-2176-5c76-a16c-786f5b5a47c1:2026-09-08",
+      "freeUntil": "2026-09-08T05:00:00Z"
+    },
+    {
+      "code": "414",
+      "floor": 4,
+      "phase": "free",
+      "current": "",
+      "next": "3a9ae479-20fe-5320-a7ab-81c02049b69c:2026-09-08",
+      "freeUntil": "2026-09-08T06:00:00Z"
+    }
+  ],
+  "now": [],
+  "next": []
+}

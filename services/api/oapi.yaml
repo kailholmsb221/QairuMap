@@ -1,0 +1,12 @@
+# oapi-codegen configuration for the CampusLive HTTP server.
+# Regenerate with `go generate ./internal/httpapi/...` (see gen.go).
+package: httpapi
+output: internal/httpapi/gen.go
+generate:
+  models: true
+  chi-server: true
+  strict-server: true
+  embedded-spec: true
+output-options:
+  skip-prune: true
+  nullable-type: false

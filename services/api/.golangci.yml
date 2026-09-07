@@ -1,0 +1,52 @@
+# golangci-lint v2 configuration. Deliberately modest: the standard set plus a
+# few linters that catch real bugs, with the generated files excluded.
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: standard # errcheck, govet, ineffassign, staticcheck, unused
+  enable:
+    - errorlint
+    - misspell
+    - revive
+    - unconvert
+  settings:
+    revive:
+      rules:
+        - name: exported
+          arguments: [checkPrivateReceivers]
+        - name: package-comments
+        - name: indent-error-flow
+        - name: errorf
+        - name: context-as-argument
+        - name: unreachable-code
+        - name: superfluous-else
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - std-error-handling
+    paths:
+      # Generated from packages/contracts/openapi.yaml and by sqlc.
+      - internal/httpapi/gen.go
+      - internal/repo/gen
+    rules:
+      # Table-driven tests read better with long literal blocks.
+      - path: _test\.go
+        linters: [errcheck, revive]
+      # ARCHITECTURE §17 names this interface ScheduleSource; keeping the
+      # documented name is worth the stutter.
+      - path: internal/schedule/
+        linters: [revive]
+        text: stutters
+
+formatters:
+  enable:
+    - gofmt
+  exclusions:
+    paths:
+      - internal/httpapi/gen.go
+      - internal/repo/gen

@@ -1,0 +1,199 @@
+{
+  "building": "A",
+  "at": "2026-09-08T06:08:00Z",
+  "date": "2026-09-08",
+  "weekNumber": 3,
+  "weekParity": "odd",
+  "nextTransitionAt": "2026-09-08T06:45:00Z",
+  "stats": {
+    "RoomsTotal": 10,
+    "RoomsBusy": 5,
+    "SessionsToday": 13,
+    "SessionsDone": 5
+  },
+  "rooms": [
+    {
+      "code": "101",
+      "floor": 1,
+      "phase": "live",
+      "current": "a7e36923-3409-5410-acf8-3f16d496e77e:2026-09-08",
+      "next": "",
+      "freeUntil": null
+    },
+    {
+      "code": "110",
+      "floor": 1,
+      "phase": "live",
+      "current": "0d306776-6117-50db-af8c-0d674ddc4739:2026-09-08",
+      "next": "",
+      "freeUntil": null
+    },
+    {
+      "code": "113",
+      "floor": 1,
+      "phase": "free",
+      "current": "",
+      "next": "",
+      "freeUntil": null
+    },
+    {
+      "code": "205",
+      "floor": 2,
+      "phase": "free",
+      "current": "",
+      "next": "260705d6-c6c0-5420-9127-c69cef1ef95b:2026-09-08",
+      "freeUntil": "2026-09-08T07:00:00Z"
+    },
+    {
+      "code": "213",
+      "floor": 2,
+      "phase": "live",
+      "current": "94d1f406-7dba-58a2-ab3c-36ef6b11e2ea:2026-09-08",
+      "next": "fa9607af-6331-50a2-8cc5-6ed838dd99ad:2026-09-08",
+      "freeUntil": null
+    },
+    {
+      "code": "216",
+      "floor": 2,
+      "phase": "free",
+      "current": "",
+      "next": "",
+      "freeUntil": null
+    },
+    {
+      "code": "303",
+      "floor": 3,
+      "phase": "live",
+      "current": "8d4476b0-0e92-5491-b403-6398d06e7055:2026-09-08",
+      "next": "",
+      "freeUntil": null
+    },
+    {
+      "code": "305",
+      "floor": 3,
+      "phase": "free",
+      "current": "",
+      "next": "",
+      "freeUntil": null
+    },
+    {
+      "code": "313",
+      "floor": 3,
+      "phase": "free",
+      "current": "",
+      "next": "",
+      "freeUntil": null
+    },
+    {
+      "code": "412",
+      "floor": 4,
+      "phase": "free",
+      "current": "",
+      "next": "",
+      "freeUntil": null
+    },
+    {
+      "code": "414",
+      "floor": 4,
+      "phase": "live",
+      "current": "3a9ae479-20fe-5320-a7ab-81c02049b69c:2026-09-08",
+      "next": "",
+      "freeUntil": null
+    }
+  ],
+  "now": [
+    {
+      "id": "a7e36923-3409-5410-acf8-3f16d496e77e:2026-09-08",
+      "course": "MA101",
+      "title": "Discrete Math",
+      "type": "lecture",
+      "teacher": "Smirnov P.",
+      "groups": "ПО2401,ПО2402",
+      "room": "101",
+      "floor": 1,
+      "startAt": "2026-09-08T06:00:00Z",
+      "endAt": "2026-09-08T06:50:00Z",
+      "status": "scheduled",
+      "phase": "live",
+      "conflict": false
+    },
+    {
+      "id": "0d306776-6117-50db-af8c-0d674ddc4739:2026-09-08",
+      "course": "PH101",
+      "title": "Physics",
+      "type": "lecture",
+      "teacher": "Ivanova E.",
+      "groups": "ВТ2401,ВТ2402",
+      "room": "110",
+      "floor": 1,
+      "startAt": "2026-09-08T05:00:00Z",
+      "endAt": "2026-09-08T06:50:00Z",
+      "status": "scheduled",
+      "phase": "live",
+      "conflict": false
+    },
+    {
+      "id": "94d1f406-7dba-58a2-ab3c-36ef6b11e2ea:2026-09-08",
+      "course": "CS201",
+      "title": "Databases",
+      "type": "lecture",
+      "teacher": "Akhmetov D.",
+      "groups": "ПО2308,ПО2309",
+      "room": "213",
+      "floor": 2,
+      "startAt": "2026-09-08T05:00:00Z",
+      "endAt": "2026-09-08T06:50:00Z",
+      "status": "scheduled",
+      "phase": "live",
+      "conflict": false
+    },
+    {
+      "id": "8d4476b0-0e92-5491-b403-6398d06e7055:2026-09-08",
+      "course": "CS250",
+      "title": "Algorithms",
+      "type": "practice",
+      "teacher": "Orazbayev N.",
+      "groups": "ИС2301,ИС2302",
+      "room": "303",
+      "floor": 3,
+      "startAt": "2026-09-08T06:00:00Z",
+      "endAt": "2026-09-08T06:50:00Z",
+      "status": "scheduled",
+      "phase": "live",
+      "conflict": false
+    },
+    {
+      "id": "3a9ae479-20fe-5320-a7ab-81c02049b69c:2026-09-08",
+      "course": "DS215",
+      "title": "Statistics",
+      "type": "practice",
+      "teacher": "Petrova O.",
+      "groups": "БДА2401",
+      "room": "414",
+      "floor": 4,
+      "startAt": "2026-09-08T06:00:00Z",
+      "endAt": "2026-09-08T06:50:00Z",
+      "status": "moved",
+      "phase": "live",
+      "conflict": false,
+      "movedFromRoomCode": "412"
+    }
+  ],
+  "next": [
+    {
+      "id": "260705d6-c6c0-5420-9127-c69cef1ef95b:2026-09-08",
+      "course": "PM200",
+      "title": "Project Management",
+      "type": "practice",
+      "teacher": "Zhumabekov S.",
+      "groups": "ПО2308",
+      "room": "205",
+      "floor": 2,
+      "startAt": "2026-09-08T07:00:00Z",
+      "endAt": "2026-09-08T07:50:00Z",
+      "status": "scheduled",
+      "phase": "upcoming",
+      "conflict": false
+    }
+  ]
+}

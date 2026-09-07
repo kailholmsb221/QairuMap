@@ -1,0 +1,106 @@
+{
+  "building": "A",
+  "at": "2026-09-08T16:30:00Z",
+  "date": "2026-09-08",
+  "weekNumber": 3,
+  "weekParity": "odd",
+  "nextTransitionAt": null,
+  "stats": {
+    "RoomsTotal": 10,
+    "RoomsBusy": 0,
+    "SessionsToday": 13,
+    "SessionsDone": 12
+  },
+  "rooms": [
+    {
+      "code": "101",
+      "floor": 1,
+      "phase": "free",
+      "current": "",
+      "next": "",
+      "freeUntil": null
+    },
+    {
+      "code": "110",
+      "floor": 1,
+      "phase": "free",
+      "current": "",
+      "next": "",
+      "freeUntil": null
+    },
+    {
+      "code": "113",
+      "floor": 1,
+      "phase": "free",
+      "current": "",
+      "next": "",
+      "freeUntil": null
+    },
+    {
+      "code": "205",
+      "floor": 2,
+      "phase": "free",
+      "current": "",
+      "next": "",
+      "freeUntil": null
+    },
+    {
+      "code": "213",
+      "floor": 2,
+      "phase": "free",
+      "current": "",
+      "next": "",
+      "freeUntil": null
+    },
+    {
+      "code": "216",
+      "floor": 2,
+      "phase": "free",
+      "current": "",
+      "next": "",
+      "freeUntil": null
+    },
+    {
+      "code": "303",
+      "floor": 3,
+      "phase": "free",
+      "current": "",
+      "next": "",
+      "freeUntil": null
+    },
+    {
+      "code": "305",
+      "floor": 3,
+      "phase": "free",
+      "current": "",
+      "next": "",
+      "freeUntil": null
+    },
+    {
+      "code": "313",
+      "floor": 3,
+      "phase": "free",
+      "current": "",
+      "next": "",
+      "freeUntil": null
+    },
+    {
+      "code": "412",
+      "floor": 4,
+      "phase": "free",
+      "current": "",
+      "next": "",
+      "freeUntil": null
+    },
+    {
+      "code": "414",
+      "floor": 4,
+      "phase": "free",
+      "current": "",
+      "next": "",
+      "freeUntil": null
+    }
+  ],
+  "now": [],
+  "next": []
+}
