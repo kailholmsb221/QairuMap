@@ -1,0 +1,190 @@
+{
+  "brand": {
+    "title": "CampusLive",
+    "subtitle": "Главный учебный корпус · Блок A"
+  },
+  "header": {
+    "search": "Поиск",
+    "searchHint": "⌘K",
+    "simulated": "Симуляция",
+    "live": "LIVE",
+    "backToLive": "Вернуться в эфир",
+    "all": "Все",
+    "theme": "Сменить тему",
+    "kiosk": "Режим киоска",
+    "floors": "Этажи",
+    "week": "НЕДЕЛЯ {number} · {parity}",
+    "odd": "НЕЧЁТ.",
+    "even": "ЧЁТ."
+  },
+  "board": {
+    "label": "Табло занятий",
+    "now": "СЕЙЧАС",
+    "next": "ДАЛЕЕ",
+    "nowNote": "по времени окончания",
+    "nowNoteFiltered": "идут сейчас",
+    "nextNote": "в ближайшие 90 мин",
+    "stale": "устарело · {age}",
+    "filteredBy": "Фильтр: {kind}",
+    "clearFilter": "Сбросить фильтр",
+    "kindGroup": "группа",
+    "kindTeacher": "преподаватель",
+    "kindRoom": "аудитория",
+    "kindCourse": "курс",
+    "columnTime": "Время",
+    "columnRoom": "Аудитория",
+    "columnClass": "Занятие",
+    "columnStatus": "Статус",
+    "page": "Страница {page} из {pages}"
+  },
+  "pill": {
+    "live": "ИДЁТ",
+    "ends": "ДО КОНЦА {n} МИН",
+    "in": "ЧЕРЕЗ {n} МИН",
+    "starts": "НАЧАЛО {time}",
+    "cancelled": "ОТМЕНЕНО",
+    "moved": "ПЕРЕНОС → {room}",
+    "delayed": "ЗАДЕРЖКА +{n}",
+    "conflict": "Конфликт расписания"
+  },
+  "ticker": {
+    "online": "В ЭФИРЕ",
+    "reconnecting": "ПЕРЕПОДКЛЮЧЕНИЕ…",
+    "offline": "НЕТ СВЯЗИ",
+    "version": "v1.0.0",
+    "admin": "Демо-управление",
+    "startsIn": "{room} · {course} начнётся через {n} мин · {teacher}",
+    "endsIn": "{room} · {course} закончится через {n} мин · {teacher}",
+    "cancelled": "{room} · {course} в {time} отменена · {teacher}",
+    "moved": "{from} → {to} · {course} перенесена в аудиторию {to} в {time}",
+    "delayed": "{room} · {course} задержка +{n} мин · до {time}",
+    "offlineLine": "НЕТ СВЯЗИ · сервис расписания недоступен · показано последнее состояние от {time}",
+    "quiet": "Занятий сейчас нет · в корпусе тихо",
+    "simulated": "Симулированное время {time} · эфир на паузе · нажмите LIVE, чтобы вернуться"
+  },
+  "map": {
+    "allFloors": "Все этажи",
+    "explodedHint": "разнесённый вид · нажмите на плиту, чтобы приблизить",
+    "floor": "Этаж {n}",
+    "escHint": "ESC · все этажи",
+    "roomsBusy": "аудиторий занято",
+    "busy": "занято {n}",
+    "lastKnown": "ПОСЛЕДНЕЕ СОСТОЯНИЕ · {time}",
+    "floorSub": {
+      "1": "Вестибюль · актовый зал · общественные зоны",
+      "2": "Кафедры · лаборатории · галерея атриума",
+      "3": "Учебный этаж · Cyber Range Lab",
+      "4": "Учебный этаж · AI & GPU Lab"
+    },
+    "legend": {
+      "live": "Занятие идёт",
+      "ending": "Заканчивается (5 мин)",
+      "soon": "Начнётся в течение 10 мин",
+      "free": "Свободна",
+      "service": "Не для занятий"
+    },
+    "tooltipHint": "НАЖМИТЕ ДЛЯ ПОДРОБНОСТЕЙ · ↵",
+    "until": "до {time}",
+    "free": "свободна",
+    "freeNext": "свободна · далее {time}",
+    "freeToday": "свободна сегодня",
+    "endsIn": "осталось {countdown}",
+    "startsIn": "начало через {countdown}",
+    "roomAria": "Аудитория {code}, {name}",
+    "roomAriaLive": "Аудитория {code}, {name}, идёт занятие: {course} до {time}",
+    "roomAriaFree": "Аудитория {code}, {name}, свободна"
+  },
+  "detail": {
+    "now": "СЕЙЧАС · {type}",
+    "nextInRoom": "ДАЛЕЕ В ЭТОЙ АУДИТОРИИ",
+    "today": "· сегодня",
+    "nothingLeft": "Больше занятий сегодня нет.",
+    "free": "Сейчас свободна",
+    "freeUntil": "Следующее занятие в {time}",
+    "elapsed": "прошло {n} мин · {pct}%",
+    "left": "осталось {countdown}",
+    "showOnMap": "Показать на карте",
+    "fullDay": "Весь день",
+    "close": "Закрыть",
+    "capacity": "{n} мест",
+    "meta": "{type} · {capacity} · Этаж {floor} · {wing} крыло",
+    "wing": {
+      "north": "Северное",
+      "south": "Южное",
+      "core": "Центральное"
+    },
+    "type": {
+      "lecture": "Лекционная",
+      "seminar": "Семинарская",
+      "lab": "Лаборатория",
+      "coworking": "Коворкинг",
+      "admin": "Кабинет",
+      "service": "Служебное",
+      "void": "Проём"
+    },
+    "lessonType": {
+      "lecture": "ЛЕКЦИЯ",
+      "practice": "ПРАКТИКА",
+      "lab": "ЛАБОРАТОРНАЯ"
+    }
+  },
+  "search": {
+    "placeholder": "Группы, преподаватели, аудитории, курсы…",
+    "empty": "Ничего не найдено",
+    "groups": "ГРУППЫ",
+    "teachers": "ПРЕПОДАВАТЕЛИ",
+    "rooms": "АУДИТОРИИ",
+    "courses": "КУРСЫ",
+    "onMap": "НА КАРТЕ",
+    "hintNav": "↑↓ навигация",
+    "hintPick": "↵ показать на карте",
+    "hintFilter": "tab фильтр табло",
+    "esc": "ESC",
+    "groupSub": "{program} · {year} курс",
+    "roomSub": "Этаж {floor} · {type}",
+    "loading": "Поиск…"
+  },
+  "travel": {
+    "title": "ПУТЕШЕСТВИЕ ВО ВРЕМЕНИ · {date}",
+    "hint": "перетащите · занятость по слотам",
+    "live": "LIVE",
+    "open": "Путешествие во времени"
+  },
+  "admin": {
+    "title": "Демо-управление",
+    "subtitle": "Изменения уходят в реальный admin API",
+    "pickSession": "Занятие",
+    "cancel": "Отменить",
+    "move": "Перенести в",
+    "delay": "Задержать",
+    "announce": "Объявление",
+    "post": "Отправить",
+    "undo": "Отменить",
+    "created": "Применённые изменения",
+    "roomPlaceholder": "Код аудитории",
+    "minutes": "мин",
+    "announcementPlaceholder": "Текст объявления…",
+    "close": "Закрыть",
+    "failed": "Запрос не удался"
+  },
+  "empty": {
+    "title": "Занятий сейчас нет",
+    "subtitle": "В корпусе тихо. Занятия продолжатся завтра.",
+    "nextClass": "СЛЕДУЮЩЕЕ ЗАНЯТИЕ"
+  },
+  "error": {
+    "title": "Сервис расписания недоступен",
+    "body": "Табло не может связаться с API расписания. Карта показывает последнее известное состояние от {time}.",
+    "retryIn": "НЕТ СВЯЗИ · ПОВТОР ЧЕРЕЗ {n} С",
+    "retryNow": "Повторить",
+    "showLast": "Показать последнее табло"
+  },
+  "kiosk": {
+    "nextFloor": "СЛЕДУЮЩИЙ ЭТАЖ ЧЕРЕЗ {n} С",
+    "exit": "Выйти из киоска"
+  },
+  "compact": {
+    "map": "Карта",
+    "board": "Табло"
+  }
+}

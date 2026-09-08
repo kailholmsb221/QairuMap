@@ -1,0 +1,190 @@
+{
+  "brand": {
+    "title": "CampusLive",
+    "subtitle": "Main Academic Building · Block A"
+  },
+  "header": {
+    "search": "Search",
+    "searchHint": "⌘K",
+    "simulated": "Simulated",
+    "live": "LIVE",
+    "backToLive": "Return to live",
+    "all": "All",
+    "theme": "Toggle theme",
+    "kiosk": "Kiosk mode",
+    "floors": "Floors",
+    "week": "WEEK {number} · {parity}",
+    "odd": "ODD",
+    "even": "EVEN"
+  },
+  "board": {
+    "label": "Departures board",
+    "now": "NOW",
+    "next": "NEXT",
+    "nowNote": "by end time",
+    "nowNoteFiltered": "in progress",
+    "nextNote": "within 90 min",
+    "stale": "stale · {age}",
+    "filteredBy": "Filtered by {kind}",
+    "clearFilter": "Clear filter",
+    "kindGroup": "group",
+    "kindTeacher": "teacher",
+    "kindRoom": "room",
+    "kindCourse": "course",
+    "columnTime": "Time",
+    "columnRoom": "Room",
+    "columnClass": "Class",
+    "columnStatus": "Status",
+    "page": "Page {page} of {pages}"
+  },
+  "pill": {
+    "live": "LIVE",
+    "ends": "ENDS {n} MIN",
+    "in": "IN {n} MIN",
+    "starts": "STARTS {time}",
+    "cancelled": "CANCELLED",
+    "moved": "MOVED → {room}",
+    "delayed": "DELAYED +{n}",
+    "conflict": "Schedule conflict"
+  },
+  "ticker": {
+    "online": "LIVE",
+    "reconnecting": "RECONNECTING…",
+    "offline": "OFFLINE",
+    "version": "v1.0.0",
+    "admin": "Demo controls",
+    "startsIn": "{room} · {course} starts in {n} min · {teacher}",
+    "endsIn": "{room} · {course} ends in {n} min · {teacher}",
+    "cancelled": "{room} · {course} at {time} is cancelled · {teacher}",
+    "moved": "{from} → {to} · {course} moved to room {to} at {time}",
+    "delayed": "{room} · {course} delayed +{n} min · ends {time}",
+    "offlineLine": "OFFLINE · schedule service unreachable · showing last known state from {time}",
+    "quiet": "No classes right now · the building is quiet",
+    "simulated": "Simulated time {time} · live feed paused · press LIVE to return"
+  },
+  "map": {
+    "allFloors": "All floors",
+    "explodedHint": "exploded view · click a plate to focus",
+    "floor": "Floor {n}",
+    "escHint": "ESC · all floors",
+    "roomsBusy": "rooms busy",
+    "busy": "{n} busy",
+    "lastKnown": "LAST KNOWN STATE · {time}",
+    "floorSub": {
+      "1": "Lobby · assembly hall · public spaces",
+      "2": "Departments · labs · atrium gallery",
+      "3": "Teaching floor · Cyber Range Lab",
+      "4": "Teaching floor · AI & GPU Lab"
+    },
+    "legend": {
+      "live": "Class in progress",
+      "ending": "Ending (last 5 min)",
+      "soon": "Starts within 10 min",
+      "free": "Free",
+      "service": "Not schedulable"
+    },
+    "tooltipHint": "CLICK FOR DETAILS · ↵",
+    "until": "until {time}",
+    "free": "free",
+    "freeNext": "free · next {time}",
+    "freeToday": "free today",
+    "endsIn": "ends {countdown}",
+    "startsIn": "starts in {countdown}",
+    "roomAria": "Room {code}, {name}",
+    "roomAriaLive": "Room {code}, {name}, live: {course} until {time}",
+    "roomAriaFree": "Room {code}, {name}, free"
+  },
+  "detail": {
+    "now": "NOW · {type}",
+    "nextInRoom": "NEXT IN THIS ROOM",
+    "today": "· today",
+    "nothingLeft": "Nothing else scheduled today.",
+    "free": "Free right now",
+    "freeUntil": "Next class at {time}",
+    "elapsed": "{n} min elapsed · {pct}%",
+    "left": "ends in {countdown}",
+    "showOnMap": "Show on map",
+    "fullDay": "Full day",
+    "close": "Close",
+    "capacity": "{n} seats",
+    "meta": "{type} · {capacity} · Floor {floor} · {wing} wing",
+    "wing": {
+      "north": "North",
+      "south": "South",
+      "core": "Core"
+    },
+    "type": {
+      "lecture": "Lecture hall",
+      "seminar": "Seminar room",
+      "lab": "Laboratory",
+      "coworking": "Coworking",
+      "admin": "Office",
+      "service": "Service",
+      "void": "Void"
+    },
+    "lessonType": {
+      "lecture": "LECTURE",
+      "practice": "PRACTICE",
+      "lab": "LAB"
+    }
+  },
+  "search": {
+    "placeholder": "Search groups, teachers, rooms, courses…",
+    "empty": "Nothing found",
+    "groups": "GROUPS",
+    "teachers": "TEACHERS",
+    "rooms": "ROOMS",
+    "courses": "COURSES",
+    "onMap": "ON MAP",
+    "hintNav": "↑↓ navigate",
+    "hintPick": "↵ highlight on map",
+    "hintFilter": "tab filter board",
+    "esc": "ESC",
+    "groupSub": "{program} · year {year}",
+    "roomSub": "Floor {floor} · {type}",
+    "loading": "Searching…"
+  },
+  "travel": {
+    "title": "TIME TRAVEL · {date}",
+    "hint": "drag to scrub · occupancy per slot",
+    "live": "LIVE",
+    "open": "Time travel"
+  },
+  "admin": {
+    "title": "Demo controls",
+    "subtitle": "Overrides hit the real admin API",
+    "pickSession": "Session",
+    "cancel": "Cancel",
+    "move": "Move to",
+    "delay": "Delay",
+    "announce": "Announcement",
+    "post": "Post",
+    "undo": "Undo",
+    "created": "Applied overrides",
+    "roomPlaceholder": "Room code",
+    "minutes": "min",
+    "announcementPlaceholder": "Announcement text…",
+    "close": "Close",
+    "failed": "Request failed"
+  },
+  "empty": {
+    "title": "No classes right now",
+    "subtitle": "The building is quiet. Classes resume tomorrow.",
+    "nextClass": "NEXT CLASS"
+  },
+  "error": {
+    "title": "Schedule service unavailable",
+    "body": "The board can't reach the schedule API. The map shows the last known state from {time}.",
+    "retryIn": "OFFLINE · RETRYING IN {n} S",
+    "retryNow": "Retry now",
+    "showLast": "Show last board"
+  },
+  "kiosk": {
+    "nextFloor": "NEXT FLOOR IN {n} S",
+    "exit": "Exit kiosk"
+  },
+  "compact": {
+    "map": "Map",
+    "board": "Board"
+  }
+}

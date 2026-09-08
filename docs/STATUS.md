@@ -1,6 +1,26 @@
 # CampusLive — status
 
-_Last updated: Phase 0 complete + the map-data half of Phase 1._
+**All ten phases (0–9) are complete.** The stack builds, seeds, runs and is
+covered end to end; `README.md` has the screenshots and the run instructions.
+
+| # | Phase | State |
+|---|---|---|
+| 0 | Scaffold, contract, CI | ✅ |
+| 1 | Data — migrations, sqlc, map-data pipeline, seed | ✅ |
+| 2 | Engine + clock (98 % coverage) | ✅ |
+| 3 | REST API + contract tests + ETag | ✅ |
+| 4 | Realtime — broker, scheduler, admin overrides | ✅ |
+| 5 | Screen shell — layout, header, board, ticker, i18n | ✅ |
+| 6 | 2.5D map — scene, plates, rooms, focus, detail panel | ✅ |
+| 7 | Interaction — search, highlight, time travel, a11y | ✅ |
+| 8 | Kiosk + demo scripts | ✅ |
+| 9 | Polish — states, README, screenshots, deploy config | ✅ |
+
+The three sections below are the per-area records, written as each area landed.
+
+---
+
+# Scaffold, contract and map-data (Phase 0 + the data half of Phase 1)
 
 ## Done
 
@@ -29,25 +49,19 @@ _Last updated: Phase 0 complete + the map-data half of Phase 1._
 
 **Room totals** — 89 spaces, 41 schedulable (floor 1: 24 / 5 · floor 2: 25 / 12 · floor 3: 20 / 12 · floor 4: 20 / 12).
 
-## Next
-
-1. **Backend (Phase 1 → 4).** Fill `services/api`: goose migrations for ARCHITECTURE §6, sqlc queries, `internal/{domain,engine,clock,schedule,repo,httpapi,realtime,scheduler,config,seed}`, `cmd/api`, `cmd/seed` (reads `packages/map-data/building-a.json`). Generate the server types with
-   `oapi-codegen -generate types,chi-server,strict-server -package httpapi ../../packages/contracts/openapi.yaml > internal/httpapi/gen.go`.
-2. **Frontend (Phase 5 → 8).** Create `apps/web` (Next.js 15, Tailwind v4, `transpilePackages: ['@campuslive/contracts', '@campuslive/map-data']`, `output: 'standalone'`), then the board, the 2.5D map and the overlays.
-3. Add `lint` scripts to the new packages so `pnpm lint` covers them, and Playwright config so `pnpm e2e` has something to run.
-
 ## Known issues / deliberate deviations
 
 - **Nullable fields are plain optionals.** `RoomLiveState.freeUntil` and `Snapshot.nextTransitionAt` are documented as nullable but typed `string` rather than `["string","null"]`: oapi-codegen cannot yet generate OpenAPI 3.1 type unions (it fails with `unhandled Schema type`). Go emits a nil pointer / JSON `null`; TypeScript sees the field as optional. Revisit when oapi-codegen supports 3.1 unions.
 - **oapi-codegen prints a 3.1 warning.** Generation succeeds and the output compiles, but the tool still warns that 3.1 is not fully supported. The spec deliberately avoids `oneOf`, `anyOf`, `const` and other 3.1-only constructs so it stays generatable.
 - **89 rooms, not "~85".** ARCHITECTURE §13 estimates ~85; the actual geometry from `docs/design/src/geometry.mjs` yields 89 spaces, because floors 3 and 4 each carry two `TECH-*` service rooms that Appendix A summarises rather than lists. The schedulable count is exactly the specified 41 (5 / 12 / 12 / 12).
-- **`pnpm seed`, `pnpm dev` and `pnpm e2e` are wired but have nothing to run yet** — `services/api` holds only `go.mod` and the Dockerfile, `apps/web` only the Dockerfile.
-- **`services/api/go.sum` does not exist yet**, so the CI Go cache key (`cache-dependency-path: services/api/go.sum`) warns until the backend engineer adds the first dependency.
-- `docker-compose.yml` gives the api container a `-healthcheck` flag; `cmd/api` must implement it (or the healthcheck should be dropped).
+- ~~`pnpm seed` / `pnpm dev` / `pnpm e2e` have nothing to run yet~~ — resolved: both halves shipped.
+- ~~`services/api/go.sum` does not exist~~ / ~~`cmd/api` must implement `-healthcheck`~~ — both resolved by the backend.
 
 ---
 
-# Backend — `services/api` (Phases 1–4 complete)
+---
+
+# Backend — `services/api` (Phases 1–4)
 
 _Added by the backend engineer. Everything below concerns `services/api` only;
 `apps/`, `packages/` and the root config were not touched._
@@ -185,3 +199,66 @@ _Added by the backend engineer. Everything below concerns `services/api` only;
 - `pnpm seed` can now run `go run ./cmd/seed --reset` from `services/api`.
 - The SSE payload and the `/board` body are produced by the same function, so a
   client can treat them interchangeably.
+
+---
+
+# Frontend — `apps/web` (Phases 5–9)
+
+## Done
+
+**Shell and layout**
+
+- Next.js 15.5 App Router, React 19, TypeScript strict, Tailwind CSS v4 (`@tailwindcss/postcss`), `output: 'standalone'`, `transpilePackages` for both workspace packages. Manrope + JetBrains Mono are self-hosted (`public/fonts`, `app/fonts.css`) so the build needs no network.
+- `app/globals.css` carries every token from `docs/design/tokens.css` plus the layout metrics as CSS variables. `features/metrics/useViewportMetrics.ts` re-values them per breakpoint: the design's `M720` table below 1536 px, `M1080` up to 2560, then a proportional scale up to 4K. Nothing in the tree reads a pixel constant directly.
+- `app/(main)/page.tsx` is a Server Component: it fetches `/map` and `/board` on the server, so the first paint is already live data. If the API is unreachable at SSR it falls back to the static `@campuslive/map-data` spec and boots straight into the API-down state instead of a blank screen.
+- Grid is `100dvh` / `overflow: hidden` / `64px 1fr 40px` × `1fr 560px`. Below 1024 px map and board become tabs. Verified by Playwright at 1280×720, 1920×1080, 2560×1440 and 3840×2160.
+
+**Board**
+
+- Two-line rows exactly as the design draws them: `SplitFlap(time) · SplitFlap(room) · course code + title (+ ⚠ on conflict) / teacher · groups · → end` and a status pill. Seven pill kinds (`LIVE`, `ENDS n MIN`, `IN n MIN`, `STARTS hh:mm`, `CANCELLED` with a struck title, `MOVED → room`, `DELAYED +n`); a moved row keeps the original room in the flap.
+- `SplitFlap` flips each cell in two `rotateX` halves, 90 ms per half, staggered 25 ms, capped at 40 simultaneous cells (beyond that it fades). `useAutoFitRows` measures with a `ResizeObserver` and `splitRows` divides the height between the sections; `usePager` rotates pages every 8 s and pauses while the pointer is over the board.
+- Rows enter/leave with `AnimatePresence mode="popLayout"`; a session crossing from NEXT to NOW keeps its `layoutId` and slides between the sections. Rows are subscribed per `sessionId`, so the 1 Hz clock tick only re-renders the rows that show a countdown.
+
+**2.5D map**
+
+- `Scene` is a `motion.div` at `perspective: 2200px` with `rotateX`/`rotateZ` on springs (`stiffness 120, damping 18`); the exploded default is `rotateX(58°) rotateZ(-38°)` with plates 118 px apart on Z and a darker under-slab 6 px below each. The fit-to-stage projection is a direct port of the design's `projector()`, which is also what positions the `F1 · 3 busy` labels and the search badges.
+- Focus view ports `focusScene()`: the plate lies flat turned −90°, the floor below shows through as a 7 % ghost, and every schedulable room gets a chip (code, course, countdown, progress arc) that goes compact under 118 px of screen width.
+- `FloorPlan` (slab, zone tints, corridors, core stair/lift glyphs, entrances, atrium void with its bridge, lit top edge) is memoised and never re-renders on a tick. `RoomShape` is a focusable `<path role="button">` with a full `aria-label`; phase fills, the 1 Hz `soon` blink, the live pulse dot, the conflict hatch and the dashed void all come from the design's `roomFill()`. Glow is a second stroked path — the only `filter` in the app is one `drop-shadow` on the single focused plate.
+- Parallax tilts ±2.5° on a slow spring, off in kiosk mode and under `prefers-reduced-motion`. Geometry is read only from `/map` (or the static spec) — no coordinate is written in the components.
+
+**Overlays, interaction, states**
+
+- `RoomDetailPanel` (420 px glass card, live block with progress and teacher, next three sessions from `/rooms/{code}/day`, "Show on map" / "Full day"), `SearchPalette` (⌘K via `cmdk`, four result groups, selection badges the rooms and filters the board), `TimeTravelBar` (4 px line → 96 px day timeline with slot ticks and an occupancy heat strip from `/timeline`; drag or arrow keys scrub, debounced 120 ms, `SIMULATED` tag, `LIVE` returns), `DemoAdminPanel` (cancel / move / delay / reassign / announce against the admin API, with undo).
+- `useRealtime` wraps `EventSource` behind a `RealtimeClient` interface: `snapshot` → store, `announcement` → ticker, no `heartbeat` for 30 s → `reconnecting`, reconnect → one `/board` refetch. Travel mode ignores SSE snapshots and re-applies the last live one when you press `LIVE`.
+- Every state in the design is implemented: live, travel, after-hours (dim map, lit entrances, "next class" card), reconnecting (`stale · n s` badge, board intact), API down (error card with a 12 s retry countdown), plus `/kiosk` with the ring-progress floor indicator and self-rotating focus and pages.
+- i18n is `next-intl` with a cookie locale (no URL prefix) and a server action to switch — `/` and `/kiosk` keep stable URLs. `ru`, `kk`, `en` are complete. Light theme is the same token set re-valued under `:root[data-theme='light']`.
+
+## Quality gates (all green)
+
+| Gate | Result |
+|---|---|
+| `pnpm lint` (eslint 9, next config) | clean |
+| `pnpm typecheck` (`tsc --noEmit`, strict) | clean |
+| `pnpm test` (vitest) | 67 tests / 7 files |
+| `pnpm build` | main route **230 kB** first-load JS (budget 300 kB), kiosk 215 kB |
+| `pnpm e2e` (Playwright, `CLOCK_MODE=fixed`) | 16 / 16 |
+
+Unit tests cover `deriveProgress` / `formatCountdown` / `formatHm`, `usePager`, `useAutoFitRows` (mocked `ResizeObserver`), the board selectors (pill kind, display room, room phase, floor busy counts, highlight matching), `boardStore` (SSE ignored while travelling), `SplitFlap` and `BoardRow` in all seven statuses.
+
+E2E covers: no page scroll at four viewports plus `/kiosk`; an admin cancel reaching an open board over SSE in well under a second with no navigation, then recovering when the override is deleted; the connection dot; searching `ПО2308` badging room 213, dimming the rest to 0.35 and filtering the board, then restoring on Escape; ⌘K; floor tab 2 → focus → room 213 → detail panel; room keyboard reachability and `aria-label`s; the board's table semantics; time travel entering and leaving simulated mode; the kiosk rotating floors and pages; and two masked visual snapshots (main, focus) whose baselines are committed.
+
+`pnpm --filter web shots` regenerates the nine documentation screenshots in `docs/screenshots/`.
+
+## Deliberate deviations
+
+1. **`next start` warns about `output: 'standalone'`.** It still serves correctly, and Playwright's `webServer` uses it; production containers run `node .next/standalone/server.js`, which is what `apps/web/Dockerfile` does.
+2. **The e2e base URL is `localhost`, not `127.0.0.1`.** The API's CORS allow-list is an exact origin match and `infra/.env.example` ships `CORS_ORIGINS=http://localhost:3000`; using the loopback IP silently broke every client fetch. Noted in `playwright.config.ts`.
+3. **The realtime and search e2e scenarios pin the board with a filter first.** The board legitimately paginates every 8 s, so a row for one specific room is not reliably on screen. Filtering is the user-facing way to hold it there and is itself part of the assertion. Row counts after a filter are polled rather than read once, because leaving rows stay mounted for their 300 ms exit animation.
+4. **The after-hours screenshot scrubs the day slider with the keyboard** (`role="slider"` + `ArrowRight`) instead of a synthetic pointer drag — the drag was flaky at the track's far edge and the keyboard path is a real a11y affordance that deserves the coverage.
+5. **No Lighthouse run.** This sandbox has no Chrome-with-devtools-protocol budget for it; the underlying targets are met by construction (SSR first paint, 230 kB JS, `aria-label`s on every interactive element, ≥ 4.5:1 status contrast, motion limited to `transform`/`opacity`), but the score itself is unverified.
+6. **More `ending` (orange) rooms than the design's hero.** At the demo instant 10:47 most seeded classes are in their last five minutes, which is exactly what the engine should say; the design's mock hand-picked a livelier mix. The map and board are both correct — the difference is data, not styling.
+
+## Notes
+
+- `turbo.json` now carries `@campuslive/map-data#build` and `@campuslive/contracts#build` overrides so their artifacts are cached rather than warned about.
+- `.github/workflows/ci.yml`: the Phase-0 "detect sources" guards are gone, and the `e2e` job now builds and starts `cmd/api` (with `CORS_ORIGINS` and the fixed clock) and waits on `/readyz` before Playwright runs.

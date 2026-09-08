@@ -1,0 +1,190 @@
+{
+  "brand": {
+    "title": "CampusLive",
+    "subtitle": "Бас оқу корпусы · A блогы"
+  },
+  "header": {
+    "search": "Іздеу",
+    "searchHint": "⌘K",
+    "simulated": "Симуляция",
+    "live": "LIVE",
+    "backToLive": "Эфирге оралу",
+    "all": "Барлығы",
+    "theme": "Тақырыпты ауыстыру",
+    "kiosk": "Киоск режимі",
+    "floors": "Қабаттар",
+    "week": "{number}-АПТА · {parity}",
+    "odd": "ТАҚ",
+    "even": "ЖҰП"
+  },
+  "board": {
+    "label": "Сабақтар табло",
+    "now": "ҚАЗІР",
+    "next": "КЕЛЕСІ",
+    "nowNote": "аяқталу уақыты бойынша",
+    "nowNoteFiltered": "жүріп жатыр",
+    "nextNote": "90 мин ішінде",
+    "stale": "ескірген · {age}",
+    "filteredBy": "Сүзгі: {kind}",
+    "clearFilter": "Сүзгіні алу",
+    "kindGroup": "топ",
+    "kindTeacher": "оқытушы",
+    "kindRoom": "аудитория",
+    "kindCourse": "курс",
+    "columnTime": "Уақыт",
+    "columnRoom": "Аудитория",
+    "columnClass": "Сабақ",
+    "columnStatus": "Күй",
+    "page": "{page} / {pages} бет"
+  },
+  "pill": {
+    "live": "ЖҮРУДЕ",
+    "ends": "{n} МИН ҚАЛДЫ",
+    "in": "{n} МИН СОҢ",
+    "starts": "БАСТАЛУЫ {time}",
+    "cancelled": "БОЛДЫРЫЛМАДЫ",
+    "moved": "КӨШІРІЛДІ → {room}",
+    "delayed": "КЕШІГУ +{n}",
+    "conflict": "Кесте қайшылығы"
+  },
+  "ticker": {
+    "online": "ЭФИРДЕ",
+    "reconnecting": "ҚАЙТА ҚОСЫЛУДА…",
+    "offline": "БАЙЛАНЫС ЖОҚ",
+    "version": "v1.0.0",
+    "admin": "Демо басқару",
+    "startsIn": "{room} · {course} {n} мин соң басталады · {teacher}",
+    "endsIn": "{room} · {course} {n} мин соң аяқталады · {teacher}",
+    "cancelled": "{room} · {course} {time} болдырылмады · {teacher}",
+    "moved": "{from} → {to} · {course} {time} {to} аудиториясына көшірілді",
+    "delayed": "{room} · {course} +{n} мин кешігу · {time} дейін",
+    "offlineLine": "БАЙЛАНЫС ЖОҚ · кесте қызметі қолжетімсіз · {time} сәтіндегі соңғы күй",
+    "quiet": "Қазір сабақ жоқ · корпус тыныш",
+    "simulated": "Симуляциялық уақыт {time} · эфир кідіртілді · оралу үшін LIVE басыңыз"
+  },
+  "map": {
+    "allFloors": "Барлық қабат",
+    "explodedHint": "жайылған көрініс · қабатты басыңыз",
+    "floor": "{n}-қабат",
+    "escHint": "ESC · барлық қабат",
+    "roomsBusy": "аудитория бос емес",
+    "busy": "{n} бос емес",
+    "lastKnown": "СОҢҒЫ КҮЙ · {time}",
+    "floorSub": {
+      "1": "Вестибюль · акт залы · қоғамдық аймақтар",
+      "2": "Кафедралар · зертханалар · атриум галереясы",
+      "3": "Оқу қабаты · Cyber Range Lab",
+      "4": "Оқу қабаты · AI & GPU Lab"
+    },
+    "legend": {
+      "live": "Сабақ жүруде",
+      "ending": "Аяқталуда (5 мин)",
+      "soon": "10 мин ішінде басталады",
+      "free": "Бос",
+      "service": "Сабаққа арналмаған"
+    },
+    "tooltipHint": "ТОЛЫҒЫРАҚ · ↵",
+    "until": "{time} дейін",
+    "free": "бос",
+    "freeNext": "бос · келесі {time}",
+    "freeToday": "бүгін бос",
+    "endsIn": "{countdown} қалды",
+    "startsIn": "{countdown} соң",
+    "roomAria": "{code} аудиториясы, {name}",
+    "roomAriaLive": "{code} аудиториясы, {name}, сабақ жүруде: {course}, {time} дейін",
+    "roomAriaFree": "{code} аудиториясы, {name}, бос"
+  },
+  "detail": {
+    "now": "ҚАЗІР · {type}",
+    "nextInRoom": "ОСЫ АУДИТОРИЯДА КЕЛЕСІ",
+    "today": "· бүгін",
+    "nothingLeft": "Бүгін басқа сабақ жоқ.",
+    "free": "Қазір бос",
+    "freeUntil": "Келесі сабақ {time}",
+    "elapsed": "{n} мин өтті · {pct}%",
+    "left": "{countdown} қалды",
+    "showOnMap": "Картадан көрсету",
+    "fullDay": "Толық күн",
+    "close": "Жабу",
+    "capacity": "{n} орын",
+    "meta": "{type} · {capacity} · {floor}-қабат · {wing} қанат",
+    "wing": {
+      "north": "Солтүстік",
+      "south": "Оңтүстік",
+      "core": "Орталық"
+    },
+    "type": {
+      "lecture": "Дәрісхана",
+      "seminar": "Семинар бөлмесі",
+      "lab": "Зертхана",
+      "coworking": "Коворкинг",
+      "admin": "Кабинет",
+      "service": "Қызметтік",
+      "void": "Ойық"
+    },
+    "lessonType": {
+      "lecture": "ДӘРІС",
+      "practice": "ПРАКТИКА",
+      "lab": "ЗЕРТХАНА"
+    }
+  },
+  "search": {
+    "placeholder": "Топтар, оқытушылар, аудиториялар, курстар…",
+    "empty": "Ештеңе табылмады",
+    "groups": "ТОПТАР",
+    "teachers": "ОҚЫТУШЫЛАР",
+    "rooms": "АУДИТОРИЯЛАР",
+    "courses": "КУРСТАР",
+    "onMap": "КАРТАДА",
+    "hintNav": "↑↓ жылжу",
+    "hintPick": "↵ картада көрсету",
+    "hintFilter": "tab табло сүзгісі",
+    "esc": "ESC",
+    "groupSub": "{program} · {year}-курс",
+    "roomSub": "{floor}-қабат · {type}",
+    "loading": "Ізделуде…"
+  },
+  "travel": {
+    "title": "УАҚЫТ БОЙЫНША · {date}",
+    "hint": "сүйреңіз · слот бойынша жүктеме",
+    "live": "LIVE",
+    "open": "Уақыт бойынша"
+  },
+  "admin": {
+    "title": "Демо басқару",
+    "subtitle": "Өзгерістер нақты admin API-ге жіберіледі",
+    "pickSession": "Сабақ",
+    "cancel": "Болдырмау",
+    "move": "Көшіру",
+    "delay": "Кешіктіру",
+    "announce": "Хабарландыру",
+    "post": "Жіберу",
+    "undo": "Қайтару",
+    "created": "Қолданылған өзгерістер",
+    "roomPlaceholder": "Аудитория коды",
+    "minutes": "мин",
+    "announcementPlaceholder": "Хабарландыру мәтіні…",
+    "close": "Жабу",
+    "failed": "Сұраныс сәтсіз"
+  },
+  "empty": {
+    "title": "Қазір сабақ жоқ",
+    "subtitle": "Корпус тыныш. Сабақтар ертең жалғасады.",
+    "nextClass": "КЕЛЕСІ САБАҚ"
+  },
+  "error": {
+    "title": "Кесте қызметі қолжетімсіз",
+    "body": "Табло кесте API-ге қосыла алмайды. Карта {time} сәтіндегі соңғы күйді көрсетеді.",
+    "retryIn": "БАЙЛАНЫС ЖОҚ · {n} С СОҢ ҚАЙТАЛАУ",
+    "retryNow": "Қайталау",
+    "showLast": "Соңғы таблоны көрсету"
+  },
+  "kiosk": {
+    "nextFloor": "КЕЛЕСІ ҚАБАТ {n} С СОҢ",
+    "exit": "Киоскіден шығу"
+  },
+  "compact": {
+    "map": "Карта",
+    "board": "Табло"
+  }
+}

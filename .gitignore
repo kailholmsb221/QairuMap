@@ -24,6 +24,9 @@ services/api/bin/
 .env.*.local
 !infra/.env.example
 
+# typescript incremental build info
+*.tsbuildinfo
+
 # editors / os
 .DS_Store
 *.log
