@@ -601,7 +601,7 @@ func (s *Server) CreateOverride(ctx context.Context, request CreateOverrideReque
 	params := repo.InsertOverrideParams{Date: date, Kind: domain.OverrideKind(body.Kind), Note: deref(body.Note)}
 
 	if body.Kind != Extra {
-		lessonID, resp := s.resolveLesson(body, date, bad)
+		lessonID, resp := s.resolveOverrideLesson(body, date, bad)
 		if resp != nil {
 			return resp, nil
 		}
@@ -680,9 +680,10 @@ func (s *Server) CreateOverride(ctx context.Context, request CreateOverrideReque
 	return CreateOverride201JSONResponse(overrideDTO(record)), nil
 }
 
-// resolveLesson accepts either `lessonId` or a `sessionId` of the documented
-// `{lessonId}:{date}` shape.
-func (s *Server) resolveLesson(body OverrideRequest, date domain.Date, bad func(string) CreateOverrideResponseObject) (*uuid.UUID, CreateOverrideResponseObject) {
+// resolveOverrideLesson accepts either `lessonId` or a `sessionId` of the
+// documented `{lessonId}:{date}` shape. (The recurring-schedule admin handlers
+// have their own resolveLesson in admin.go, which validates a whole placement.)
+func (s *Server) resolveOverrideLesson(body OverrideRequest, date domain.Date, bad func(string) CreateOverrideResponseObject) (*uuid.UUID, CreateOverrideResponseObject) {
 	if body.LessonId != nil {
 		id := *body.LessonId
 		return &id, nil

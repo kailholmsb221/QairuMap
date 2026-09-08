@@ -1,8 +1,12 @@
 /**
- * svg2map — turns the hand-authored floor plans into the one geometry artifact
- * that both the web app and the Go seed read.
+ * svg2map — turns the authored floor plans into the one geometry artifact that
+ * both the web app and the Go seed read.
  *
- *   packages/map-data/svg/floor-{1..4}.svg  →  packages/map-data/building-a.json
+ *   packages/map-data/svg/floor-{1,2}.svg  →  packages/map-data/building-a.json
+ *
+ * The building has two floors; the room programme is `docs/BUILDING.md`, which
+ * this script validates the SVGs against (schedulable set per floor, 51 spaces
+ * in total).
  *
  * The output matches the `MapSpec` schema in `packages/contracts/openapi.yaml`
  * exactly, so `apps/web` can type it as `MapSpec` and `cmd/seed` can unmarshal it
@@ -40,7 +44,8 @@ const OUT_FILE = resolve(PKG_ROOT, 'building-a.json');
 const BUILDING_CODE = 'A';
 const BUILDING_NAME = 'Main Academic Building';
 const BUILDING_TIMEZONE = 'Asia/Almaty';
-const FLOOR_NUMBERS = [1, 2, 3, 4] as const;
+const FLOOR_NUMBERS = [1, 2] as const;
+const EXPECTED_ROOM_TOTAL = 51;
 const VIEW_BOX = [0, 0, 600, 1000] as const;
 
 /**
@@ -62,23 +67,40 @@ const ROOM_TYPES: readonly RoomType[] = [
 ];
 const WINGS: readonly Wing[] = ['north', 'south', 'core'];
 
-/** Corridor bands, mirroring `docs/design/src/geometry.mjs` BANDS. */
-const CORRIDOR_BANDS = [
-  { id: 'corridor-north', rect: [0, 300, 470, 30] as const },
-  { id: 'corridor-south', rect: [0, 670, 470, 30] as const },
-];
+/**
+ * The two circulation spines of each plate, tinted a shade lighter than the
+ * rooms. They are the white gaps the room rectangles leave, so they differ per
+ * floor: on floor 1 the east–west run under the north hall and the diagonal gap
+ * through the south block; on floor 2 the north and south legs of the corridor
+ * ring between the perimeter rooms and the inner core.
+ */
+const CORRIDOR_BANDS: Record<number, readonly { id: string; rect: readonly [number, number, number, number] }[]> = {
+  1: [
+    { id: 'corridor-north', rect: [56, 440, 440, 28] },
+    { id: 'corridor-south', rect: [150, 738, 310, 28] },
+  ],
+  2: [
+    { id: 'corridor-north', rect: [156, 222, 284, 28] },
+    { id: 'corridor-south', rect: [156, 758, 284, 28] },
+  ],
+};
 
 /**
- * Appendix A of docs/ARCHITECTURE.md: rooms that may carry lessons. The build
- * fails if a floor's schedulable set differs from this by a single code — that is
- * the guard that keeps the map, the seed and the board in step.
+ * docs/BUILDING.md: rooms that may carry lessons. The build fails if a floor's
+ * schedulable set differs from this by a single code — that is the guard that
+ * keeps the map, the seed and the board in step.
  */
 const EXPECTED_SCHEDULABLE: Record<number, readonly string[]> = {
-  1: ['101', '107', '110', '111', '112'],
-  2: ['205', '207', '208', '210', '211', '213', '214', '215', '216', '217', '218', '219'],
-  3: ['301', '302', '303', '304', '305', '308', '309', '310', '311', '312', '313', '314'],
-  4: ['401', '402', '403', '404', '405', '408', '409', '410', '411', '412', '413', '414'],
+  1: ['100', '101', 'CR'],
+  2: ['200', '201', '204', 'AI-LAB', '219', '222', '223', '224', '226', '226A'],
 };
+
+/**
+ * Room codes are upper-case alphanumeric with hyphens: `100`, `102A`, `AI-LAB`,
+ * `WC-N2`, `CORE-S1`. They become the `room-{CODE}` element ids, the unique
+ * `rooms.code` column and the map's lookup key, so the shape is checked here.
+ */
+const ROOM_CODE = /^[A-Z0-9]+(?:-[A-Z0-9]+)*$/;
 
 /* -------------------------------------------------------------------------- */
 /* Geometry helpers                                                           */
@@ -232,7 +254,12 @@ function intersect(p: Pt, q: Pt, a: Pt, b: Pt): Pt {
   return [(B2 * C1 - B1 * C2) / det, (A1 * C2 - A2 * C1) / det];
 }
 
-/** Sutherland–Hodgman clip of a subject polygon by a (near-)convex clip polygon. */
+/**
+ * Sutherland–Hodgman clip of a subject polygon by a **convex** clip polygon.
+ * Only ever called with a rectangle as the clip window (see `clipToRect`): the
+ * real silhouette is concave — a bay on the west façade and a notch on the east —
+ * and using it as the clip window would cut the wrong pieces off.
+ */
 function clipPolygon(subject: Pt[], clip: Pt[]): Pt[] {
   const sign = signedArea(clip) > 0 ? 1 : -1;
   let output = subject;
@@ -266,6 +293,14 @@ const rectPoly = ([x, y, w, h]: readonly [number, number, number, number]): Pt[]
   [x + w, y + h],
   [x, y + h],
 ];
+
+/**
+ * Concave-safe intersection of the (concave) outline with an axis-aligned band:
+ * the rectangle is the convex clip window and the outline is the subject, which
+ * is exactly the case Sutherland–Hodgman handles correctly.
+ */
+const clipToRect = (outline: Pt[], rect: readonly [number, number, number, number]): Pt[] =>
+  clipPolygon(outline, rectPoly(rect));
 
 const polyToPath = (poly: Pt[]): string =>
   poly.length ? `M ${poly.map(([x, y]) => `${r1(x)} ${r1(y)}`).join(' L ')} Z` : '';
@@ -361,9 +396,9 @@ async function convertFloor(n: number): Promise<FloorResult> {
   });
   if (zones.length === 0) fail(`${where}: <g id="zones"> is empty`);
 
-  // ---- corridors (derived from the shared bands, clipped to the outline) ---
-  const corridors: MapZone[] = CORRIDOR_BANDS.map(({ id, rect }) => {
-    const poly = clipPolygon(rectPoly(rect), outlinePoly);
+  // ---- corridors (derived from this floor's bands, clipped to the outline) -
+  const corridors: MapZone[] = (CORRIDOR_BANDS[n] ?? []).map(({ id, rect }) => {
+    const poly = clipToRect(outlinePoly, rect);
     if (poly.length < 3) fail(`${where}: corridor "${id}" is empty after clipping to the outline`);
     return { id, path: polyToPath(poly) };
   });
@@ -400,6 +435,7 @@ async function convertFloor(n: number): Promise<FloorResult> {
     const id = requireAttr(node, 'id', `${where} rooms/path`);
     if (!id.startsWith('room-')) fail(`${where}: room path id "${id}" must start with "room-"`);
     const code = id.slice('room-'.length);
+    if (!ROOM_CODE.test(code)) fail(`${where}: room code "${code}" is not [A-Z0-9] with hyphens`);
     const w = `${where} #${id}`;
     const type = requireAttr(node, 'data-type', w) as RoomType;
     if (!ROOM_TYPES.includes(type)) fail(`${w}: data-type "${type}" is not a RoomType`);
@@ -423,7 +459,7 @@ async function convertFloor(n: number): Promise<FloorResult> {
     );
   }
 
-  // ---- cores (also emitted as rooms — Appendix A lists them, the seed inserts
+  // ---- cores (also emitted as rooms — docs/BUILDING.md lists them, the seed inserts
   //      every one, and the map needs them as clickable shapes) --------------
   const cores: MapCore[] = [];
   for (const node of childrenOf(findById(svg, 'cores'), 'path')) {
@@ -435,6 +471,7 @@ async function convertFloor(n: number): Promise<FloorResult> {
     const d = assertClosedPath(requireAttr(node, 'd', w), w);
     const name = requireAttr(node, 'data-name', w);
     const code = `${id === 'core-n' ? 'CORE-N' : 'CORE-S'}${n}`;
+    if (!ROOM_CODE.test(code)) fail(`${where}: core code "${code}" is not [A-Z0-9] with hyphens`);
     const poly = samplePath(d);
     cores.push({
       id,
@@ -477,7 +514,7 @@ async function convertFloor(n: number): Promise<FloorResult> {
       requireAttr(atriumNode, 'd', `${where} #atrium`),
       `${where} #atrium`,
     );
-    addRoom('ATRIUM', 'Atrium void', 'void', 'core', false, atrium);
+    addRoom(`VOID-${n}`, 'Atrium void', 'void', 'core', false, atrium);
   }
 
   const floor: MapFloor = {
@@ -504,6 +541,8 @@ export async function buildMapSpec(): Promise<MapSpec> {
   const results: FloorResult[] = [];
   for (const n of FLOOR_NUMBERS) results.push(await convertFloor(n));
 
+  if (results.length !== 2) fail(`the building has two floors, got ${results.length}`);
+
   // Room codes are globally unique (rooms.code is `unique` in the schema).
   const seen = new Map<string, number>();
   for (const { floor } of results) {
@@ -516,7 +555,11 @@ export async function buildMapSpec(): Promise<MapSpec> {
     }
   }
 
-  // Appendix A: the schedulable set of every floor must match exactly.
+  if (seen.size !== EXPECTED_ROOM_TOTAL) {
+    fail(`docs/BUILDING.md lists ${EXPECTED_ROOM_TOTAL} spaces, the SVGs produce ${seen.size}`);
+  }
+
+  // docs/BUILDING.md: the schedulable set of every floor must match exactly.
   for (const { floor, schedulable } of results) {
     const expected = EXPECTED_SCHEDULABLE[floor.number] ?? [];
     const got = [...schedulable].sort();
@@ -525,7 +568,7 @@ export async function buildMapSpec(): Promise<MapSpec> {
     const extra = got.filter((c) => !want.includes(c));
     if (missing.length || extra.length) {
       fail(
-        `floor ${floor.number}: schedulable rooms do not match Appendix A` +
+        `floor ${floor.number}: schedulable rooms do not match docs/BUILDING.md` +
           (missing.length ? `\n  missing: ${missing.join(', ')}` : '') +
           (extra.length ? `\n  unexpected: ${extra.join(', ')}` : ''),
       );

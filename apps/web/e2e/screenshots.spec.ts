@@ -24,15 +24,15 @@ test('01 main — exploded view', async ({ page }) => {
   await page.screenshot({ path: path.join(OUT, '01-main-exploded.png') });
 });
 
-test('02 floor 2 focus with room 213 selected', async ({ page }) => {
+test('02 floor 2 focus with room 226 selected', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto('/');
   await waitForApp(page);
   await page.getByTestId('floor-tab-2').click();
   await page.waitForTimeout(1200);
-  await page.locator('[data-room-chip="213"]').click();
+  await page.locator('[data-room-chip="226"]').click();
   await page.waitForTimeout(1200);
-  await page.screenshot({ path: path.join(OUT, '02-focus-floor-2-room-213.png') });
+  await page.screenshot({ path: path.join(OUT, '02-focus-floor-2-room-226.png') });
 });
 
 test('03 search highlight', async ({ page }) => {
@@ -40,11 +40,11 @@ test('03 search highlight', async ({ page }) => {
   await page.goto('/');
   await waitForApp(page);
   await page.getByTestId('search-trigger').click();
-  await page.getByTestId('search-input').fill('ПО2308');
-  await page.getByTestId('search-item-ПО2308').waitFor();
+  await page.getByTestId('search-input').fill('Группа 13');
+  await page.getByTestId('search-item-Группа 13').waitFor();
   await page.waitForTimeout(600);
   await page.screenshot({ path: path.join(OUT, '03-search.png') });
-  await page.getByTestId('search-item-ПО2308').click();
+  await page.getByTestId('search-item-Группа 13').click();
   await page.waitForTimeout(900);
   await page.screenshot({ path: path.join(OUT, '04-search-highlight.png') });
 });
@@ -112,4 +112,13 @@ test('09 api down', async ({ page }) => {
   await page.waitForSelector('[data-state="api-down"]', { timeout: 20_000 });
   await page.waitForTimeout(600);
   await page.screenshot({ path: path.join(OUT, '09-api-down.png') });
+});
+
+test('10 admin — the weekly grid', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto('/admin');
+  await page.waitForSelector('[data-testid="grid"]');
+  await page.waitForSelector('[data-testid="grid-skeleton"]', { state: 'detached' });
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: path.join(OUT, '10-admin.png') });
 });

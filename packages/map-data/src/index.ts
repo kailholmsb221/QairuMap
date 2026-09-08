@@ -1,7 +1,7 @@
 /**
  * `@campuslive/map-data` — the typed loader for the one geometry artifact.
  *
- * `building-a.json` is generated from `svg/floor-{1..4}.svg` by `pnpm map:build`
+ * `building-a.json` is generated from `svg/floor-{1,2}.svg` by `pnpm map:build`
  * and committed. It is typed as `MapSpec` from `@campuslive/contracts`, which is
  * the exact shape `GET /api/v1/buildings/{code}/map` returns, so the map renders
  * from the same bytes the API serves and `cmd/seed` writes into the database.

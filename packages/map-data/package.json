@@ -2,7 +2,7 @@
   "name": "@campuslive/map-data",
   "version": "1.0.0",
   "private": true,
-  "description": "Floor geometry pipeline: svg/floor-{1..4}.svg → building-a.json (MapSpec)",
+  "description": "Floor geometry pipeline: svg/floor-{1,2}.svg → building-a.json (MapSpec)",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -12,6 +12,7 @@
     "./schema.json": "./schema.json"
   },
   "files": [
+    "README.md",
     "building-a.json",
     "schema.json",
     "src",
@@ -19,6 +20,7 @@
   ],
   "scripts": {
     "build": "tsx scripts/svg2map.ts",
+    "svg:author": "node scripts/authoring/build-svg.mjs",
     "map:build": "pnpm run build",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -46,8 +46,8 @@ export class ApiError extends Error {
 
 type Query = Record<string, string | number | undefined | null>;
 
-export function url(path: string, query?: Query): string {
-  const u = new URL(path, apiBase());
+export function url(path: string, query?: Query, base = apiBase()): string {
+  const u = new URL(path, base);
   if (query) {
     for (const [k, v] of Object.entries(query)) {
       if (v !== undefined && v !== null && v !== '') u.searchParams.set(k, String(v));
@@ -56,8 +56,13 @@ export function url(path: string, query?: Query): string {
   return u.toString();
 }
 
-async function request<T>(path: string, query?: Query, init?: RequestInit): Promise<T> {
-  const res = await fetch(url(path, query), {
+export async function request<T>(
+  path: string,
+  query?: Query,
+  init?: RequestInit,
+  base?: string,
+): Promise<T> {
+  const res = await fetch(url(path, query, base ?? apiBase()), {
     ...init,
     headers: { Accept: 'application/json', ...(init?.headers ?? {}) },
     cache: 'no-store',
@@ -113,6 +118,22 @@ export const api = {
 
   search: (q: string, limit?: number) =>
     request<GetOk<'/api/v1/search'>>('/api/v1/search', { q, limit }),
+
+  /* ------------------------------------------------- reference data (public) */
+
+  rooms: (building = 'A') =>
+    request<GetOk<'/api/v1/buildings/{code}/rooms'>>(`/api/v1/buildings/${building}/rooms`),
+
+  slots: (building = 'A') =>
+    request<GetOk<'/api/v1/buildings/{code}/slots'>>(`/api/v1/buildings/${building}/slots`),
+
+  teachers: () => request<GetOk<'/api/v1/teachers'>>('/api/v1/teachers'),
+
+  groups: () => request<GetOk<'/api/v1/groups'>>('/api/v1/groups'),
+
+  courses: () => request<GetOk<'/api/v1/courses'>>('/api/v1/courses'),
+
+  semesters: () => request<GetOk<'/api/v1/semesters'>>('/api/v1/semesters'),
 
   time: () => request<GetOk<'/api/v1/time'>>('/api/v1/time'),
 

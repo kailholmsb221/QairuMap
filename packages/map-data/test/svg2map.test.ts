@@ -8,15 +8,28 @@ import { buildMapSpec } from '../scripts/svg2map.js';
 
 const PKG_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-/** Appendix A of docs/ARCHITECTURE.md. */
+/** docs/BUILDING.md — the room programme of the real building. */
 const EXPECTED = {
-  totalRooms: 89,
-  totalSchedulable: 41,
+  totalRooms: 51,
+  totalSchedulable: 13,
   perFloor: {
-    1: { schedulable: 5 },
-    2: { schedulable: 12 },
-    3: { schedulable: 12 },
-    4: { schedulable: 12 },
+    1: {
+      rooms: 18,
+      schedulable: ['100', '101', 'CR'],
+      codes: [
+        '100', '101', '102', '102A', '103', 'ATRIUM-N', 'CAFE', 'CINEMA', 'CORE-N1', 'CORE-S1',
+        'CR', 'LOBBY', 'TECH-N1', 'TECH-N2', 'TECH-N3', 'TECH-S1', 'WC-1', 'WC-2',
+      ],
+    },
+    2: {
+      rooms: 33,
+      schedulable: ['200', '201', '204', '219', '222', '223', '224', '226', '226A', 'AI-LAB'],
+      codes: [
+        '200', '201', '202', '203', '204', '205', '206', '207', '208', '209', '210', '211',
+        '212', '213', '214', '215', '217', '218', '219', '220', '221', '222', '223', '224',
+        '225', '226', '226A', 'AI-LAB', 'CORE-N2', 'CORE-S2', 'VOID-2', 'WC-N2', 'WC-S2',
+      ],
+    },
   },
 } as const;
 
@@ -31,22 +44,33 @@ describe('svg2map', () => {
     expect(spec.building).toBe('A');
     expect(spec.timezone).toBe('Asia/Almaty');
     expect(spec.viewBox).toEqual([0, 0, 600, 1000]);
-    expect(spec.floors.map((f) => f.number)).toEqual([1, 2, 3, 4]);
-    expect(spec.floors.map((f) => f.planKey)).toEqual(['a-f1', 'a-f2', 'a-f3', 'a-f4']);
+    expect(spec.floors.map((f) => f.number)).toEqual([1, 2]);
+    expect(spec.floors.map((f) => f.planKey)).toEqual(['a-f1', 'a-f2']);
   });
 
-  it('produces the expected room counts', () => {
+  it('produces the room programme of docs/BUILDING.md', () => {
     const rooms = spec.floors.flatMap((f) => f.rooms);
     expect(rooms).toHaveLength(EXPECTED.totalRooms);
     expect(rooms.filter((r) => r.schedulable)).toHaveLength(EXPECTED.totalSchedulable);
 
     for (const floor of spec.floors) {
-      const n = floor.number as 1 | 2 | 3 | 4;
+      const n = floor.number as 1 | 2;
+      const want = EXPECTED.perFloor[n];
+      expect(floor.rooms, `floor ${n} room count`).toHaveLength(want.rooms);
+      expect([...floor.rooms.map((r) => r.code)].sort(), `floor ${n} codes`).toEqual([
+        ...want.codes,
+      ]);
       expect(
-        floor.rooms.filter((r) => r.schedulable).length,
-        `floor ${n} schedulable count`,
-      ).toBe(EXPECTED.perFloor[n].schedulable);
+        floor.rooms.filter((r) => r.schedulable).map((r) => r.code).sort(),
+        `floor ${n} schedulable`,
+      ).toEqual([...want.schedulable]);
     }
+  });
+
+  it('accepts the real codes — letters, digits and hyphens', () => {
+    const codes = spec.floors.flatMap((f) => f.rooms).map((r) => r.code);
+    for (const code of codes) expect(code, code).toMatch(/^[A-Z0-9]+(?:-[A-Z0-9]+)*$/);
+    expect(codes).toEqual(expect.arrayContaining(['AI-LAB', '226A', 'WC-N2', 'CORE-S1']));
   });
 
   it('gives every room a unique code and a deterministic v5 id', () => {
@@ -76,10 +100,32 @@ describe('svg2map', () => {
       for (const e of floor.entrances) paths.push([e.id, e.path]);
       if (floor.atrium) paths.push([`floor ${floor.number} atrium`, floor.atrium]);
     }
-    expect(paths.length).toBeGreaterThan(100);
+    expect(paths.length).toBeGreaterThan(60);
     for (const [where, d] of paths) {
       expect(d.startsWith('M'), `${where} starts with M`).toBe(true);
       expect(d.endsWith('Z'), `${where} ends with Z`).toBe(true);
+    }
+  });
+
+  it('keeps every room inside the building silhouette', () => {
+    for (const floor of spec.floors) {
+      const outline = floor.outline.match(/-?\d+\.?\d*/g)?.map(Number) ?? [];
+      let x0 = Infinity;
+      let y0 = Infinity;
+      let x1 = -Infinity;
+      let y1 = -Infinity;
+      for (let i = 0; i < outline.length; i += 2) {
+        x0 = Math.min(x0, outline[i] as number);
+        x1 = Math.max(x1, outline[i] as number);
+        y0 = Math.min(y0, outline[i + 1] as number);
+        y1 = Math.max(y1, outline[i + 1] as number);
+      }
+      for (const r of floor.rooms) {
+        expect(r.bbox.x, `${r.code} left`).toBeGreaterThanOrEqual(x0 - 0.1);
+        expect(r.bbox.y, `${r.code} top`).toBeGreaterThanOrEqual(y0 - 0.1);
+        expect(r.bbox.x + r.bbox.w, `${r.code} right`).toBeLessThanOrEqual(x1 + 0.1);
+        expect(r.bbox.y + r.bbox.h, `${r.code} bottom`).toBeLessThanOrEqual(y1 + 0.1);
+      }
     }
   });
 
@@ -96,7 +142,7 @@ describe('svg2map', () => {
     }
   });
 
-  it('emits both cores as rooms and the atrium on floor 2 only', () => {
+  it('emits both cores as rooms and the atrium void on floor 2 only', () => {
     for (const floor of spec.floors) {
       expect(floor.cores.map((c) => c.id)).toEqual(['core-n', 'core-s']);
       for (const core of floor.cores) {
@@ -109,21 +155,20 @@ describe('svg2map', () => {
       expect(floor.landmarks.length).toBeGreaterThan(0);
       expect(floor.entrances.some((e) => e.main)).toBe(true);
       expect(floor.corridors.map((c) => c.id)).toEqual(['corridor-north', 'corridor-south']);
+      expect(floor.zones.map((z) => z.id).sort()).toEqual(['zone-hall', 'zone-north', 'zone-south']);
     }
 
     const withAtrium = spec.floors.filter((f) => f.atrium !== undefined).map((f) => f.number);
     expect(withAtrium).toEqual([2]);
-    const atriumRoom = spec.floors
-      .flatMap((f) => f.rooms)
-      .filter((r) => r.code === 'ATRIUM');
+    const atriumRoom = spec.floors.flatMap((f) => f.rooms).filter((r) => r.code === 'VOID-2');
     expect(atriumRoom).toHaveLength(1);
     expect(atriumRoom[0]?.type).toBe('void');
   });
 
   it('decodes XML entities in room names', () => {
     const names = spec.floors.flatMap((f) => f.rooms).map((r) => r.name);
-    expect(names).toContain('Lecture Hall "Gamma"');
-    expect(names).toContain('Print & Copy Center');
+    expect(names).toContain('Stairs & Lifts');
+    expect(names).toContain("Dean's Office");
     for (const name of names) expect(name).not.toMatch(/&(quot|amp|lt|gt|apos|#\d+);/);
   });
 

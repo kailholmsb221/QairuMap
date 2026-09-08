@@ -33,6 +33,7 @@ export type ApiErrorCode = S['ErrorBody']['code'];
 export type RoomType = S['RoomType'];
 export type Wing = S['Wing'];
 export type LessonType = S['LessonType'];
+export type LessonParity = S['LessonParity'];
 export type SessionStatus = S['SessionStatus'];
 export type Phase = S['Phase'];
 export type RoomPhase = S['RoomPhase'];
@@ -79,12 +80,48 @@ export type SearchCourse = S['SearchCourse'];
 export type SearchResult = S['SearchResult'];
 
 /* -------------------------------------------------------------------------- */
+/* Reference data (the admin panel's pickers)                                 */
+/* -------------------------------------------------------------------------- */
+
+export type RoomInfo = S['RoomInfo'];
+export type RoomList = S['RoomList'];
+export type SlotInfo = S['SlotInfo'];
+export type SlotList = S['SlotList'];
+export type TeacherList = S['TeacherList'];
+export type GroupList = S['GroupList'];
+export type CourseList = S['CourseList'];
+export type Semester = S['Semester'];
+export type SemesterList = S['SemesterList'];
+
+/* -------------------------------------------------------------------------- */
+/* Recurring schedule (`/admin/lessons`)                                      */
+/* -------------------------------------------------------------------------- */
+
+export type GroupRef = S['GroupRef'];
+export type Lesson = S['Lesson'];
+export type LessonList = S['LessonList'];
+export type LessonCreate = S['LessonCreate'];
+export type LessonUpdate = S['LessonUpdate'];
+
+/* -------------------------------------------------------------------------- */
+/* Reference editing (`/admin/{teachers,groups,courses}`)                     */
+/* -------------------------------------------------------------------------- */
+
+export type TeacherCreate = S['TeacherCreate'];
+export type TeacherUpdate = S['TeacherUpdate'];
+export type GroupCreate = S['GroupCreate'];
+export type GroupUpdate = S['GroupUpdate'];
+export type CourseCreate = S['CourseCreate'];
+export type CourseUpdate = S['CourseUpdate'];
+
+/* -------------------------------------------------------------------------- */
 /* Clock, admin, ops                                                          */
 /* -------------------------------------------------------------------------- */
 
 export type TimeInfo = S['TimeInfo'];
 export type OverrideRequest = S['OverrideRequest'];
 export type Override = S['Override'];
+export type OverrideList = S['OverrideList'];
 export type AnnouncementRequest = S['AnnouncementRequest'];
 export type Announcement = S['Announcement'];
 export type Health = S['Health'];
@@ -120,7 +157,7 @@ export type OperationQuery<Id extends OperationId> = operations[Id]['parameters'
 /** Path parameters of one operation, e.g. `OperationPath<'getRoomDay'>`. */
 export type OperationPath<Id extends OperationId> = operations[Id]['parameters']['path'];
 
-/** Header name carrying the admin key on the three `/admin/*` operations. */
+/** Header name carrying the admin key on every `/admin/*` operation. */
 export const API_KEY_HEADER = 'X-Api-Key';
 
 /** Every `RoomType` that may ever carry a lesson. */

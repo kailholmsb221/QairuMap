@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -278,7 +279,7 @@ func TestContractListBuildings(t *testing.T) {
 	require.Len(t, buildings, 1)
 	require.Equal(t, "A", buildings[0].Code)
 	require.Equal(t, "Asia/Almaty", buildings[0].Timezone)
-	require.EqualValues(t, 4, buildings[0].Floors)
+	require.EqualValues(t, 2, buildings[0].Floors)
 }
 
 func TestContractMap(t *testing.T) {
@@ -292,10 +293,9 @@ func TestContractMap(t *testing.T) {
 
 	spec := decode[httpapi.MapSpec](t, body)
 	require.Equal(t, "A", spec.Building)
-	require.Len(t, spec.Floors, 4)
-	require.Equal(t, []int{24, 25, 20, 20}, []int{
+	require.Len(t, spec.Floors, 2, "the real building has two floors")
+	require.Equal(t, []int{18, 33}, []int{
 		len(spec.Floors[0].Rooms), len(spec.Floors[1].Rooms),
-		len(spec.Floors[2].Rooms), len(spec.Floors[3].Rooms),
 	})
 
 	// Floor 2 is the only one with an atrium void.
@@ -337,24 +337,25 @@ func TestContractBoard(t *testing.T) {
 	require.EqualValues(t, 3, snap.WeekNumber, "8 Sep 2026 is teaching week 3")
 	require.Equal(t, httpapi.WeekParity("odd"), snap.WeekParity)
 	require.Equal(t, "2026-09-08T05:47:00Z", snap.At.UTC().Format(time.RFC3339))
-	require.EqualValues(t, 41, snap.Stats.RoomsTotal)
-	require.GreaterOrEqual(t, len(snap.Now), 20, "the hero instant shows a busy building")
+	require.EqualValues(t, 13, snap.Stats.RoomsTotal)
+	require.GreaterOrEqual(t, len(snap.Now), 8, "the demo instant shows a busy building")
 	require.NotEmpty(t, snap.Next)
-	require.Len(t, snap.Rooms, 89, "every space of the building, schedulable or not")
+	require.Len(t, snap.Rooms, 51, "every space of the building, schedulable or not")
 	require.NotNil(t, snap.NextTransitionAt)
 
-	// The design's hero row: CS201 Databases live in 213 until 11:50.
+	// The demo instant's anchor row: the two-slot HK1105 lecture in the Assembly
+	// Hall (100), live until 11:50 local (06:50 UTC).
 	var found bool
 	for _, s := range snap.Now {
-		if s.RoomCode == "213" && s.CourseCode == "CS201" {
+		if s.RoomCode == "100" && s.CourseCode == "HK1105" {
 			found = true
 			require.Equal(t, httpapi.Phase("live"), s.Phase)
-			require.Equal(t, "Akhmetov D.", s.Teacher.ShortName)
-			require.Equal(t, []string{"ПО2308", "ПО2309"}, s.Groups)
+			require.Equal(t, "Преподаватель 7", s.Teacher.ShortName)
+			require.Equal(t, []string{"Группа 1", "Группа 2", "Группа 3"}, s.Groups)
 			require.Equal(t, "2026-09-08T06:50:00Z", s.EndAt.UTC().Format(time.RFC3339))
 		}
 	}
-	require.True(t, found, "213 must be running CS201 Databases at 10:47")
+	require.True(t, found, "100 must be running HK1105 at 10:47")
 
 	// A cancelled, a moved and a delayed row are all visible.
 	var cancelled, moved bool
@@ -367,8 +368,8 @@ func TestContractBoard(t *testing.T) {
 			require.NotNil(t, s.MovedFromRoomCode)
 		}
 	}
-	require.True(t, cancelled, "NEXT holds the cancelled SE210")
-	require.True(t, moved, "NEXT holds the moved DS215")
+	require.True(t, cancelled, "NEXT holds the cancelled lab")
+	require.True(t, moved, "NEXT holds the moved lab")
 
 	var delayed bool
 	for _, s := range snap.Now {
@@ -378,7 +379,7 @@ func TestContractBoard(t *testing.T) {
 			require.EqualValues(t, 15, *s.DelayMinutes)
 		}
 	}
-	require.True(t, delayed, "NOW holds the delayed CB240")
+	require.True(t, delayed, "NOW holds the delayed lab")
 
 	resp, _ = f.call(http.MethodGet, "/api/v1/buildings/A/board", nil, map[string]string{"If-None-Match": etag})
 	require.Equal(t, http.StatusNotModified, resp.StatusCode)
@@ -438,32 +439,32 @@ func TestContractDayViews(t *testing.T) {
 	f := newFixture(t)
 
 	t.Run("room", func(t *testing.T) {
-		resp, body := f.call(http.MethodGet, "/api/v1/rooms/213/day?date=2026-09-08", nil, nil)
+		resp, body := f.call(http.MethodGet, "/api/v1/rooms/100/day?date=2026-09-08", nil, nil)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 		day := decode[httpapi.DaySessions](t, body)
 		require.Equal(t, "2026-09-08", day.Date)
 		require.NotEmpty(t, day.Sessions)
 		for _, s := range day.Sessions {
-			require.Equal(t, "213", s.RoomCode)
+			require.Equal(t, "100", s.RoomCode)
 		}
 	})
 
 	t.Run("room moved into shows up, moved out does not", func(t *testing.T) {
-		_, body := f.call(http.MethodGet, "/api/v1/rooms/414/day?date=2026-09-08", nil, nil)
+		_, body := f.call(http.MethodGet, "/api/v1/rooms/101/day?date=2026-09-08", nil, nil)
 		into := decode[httpapi.DaySessions](t, body)
 		var sawMoved bool
 		for _, s := range into.Sessions {
 			if s.Status == "moved" {
 				sawMoved = true
 				require.NotNil(t, s.MovedFromRoomCode)
-				require.Equal(t, "412", *s.MovedFromRoomCode)
+				require.Equal(t, "226A", *s.MovedFromRoomCode)
 			}
 		}
-		require.True(t, sawMoved, "DS215 was moved into 414")
+		require.True(t, sawMoved, "the 226A lab was moved into 101")
 
-		_, body = f.call(http.MethodGet, "/api/v1/rooms/412/day?date=2026-09-08", nil, nil)
+		_, body = f.call(http.MethodGet, "/api/v1/rooms/226A/day?date=2026-09-08", nil, nil)
 		for _, s := range decode[httpapi.DaySessions](t, body).Sessions {
-			require.NotEqual(t, "DS215", s.CourseCode, "a session moved out of 412 must not be listed here")
+			require.NotEqual(t, httpapi.SessionStatus("moved"), s.Status, "a session moved out of 226A must not be listed here")
 		}
 	})
 
@@ -474,12 +475,12 @@ func TestContractDayViews(t *testing.T) {
 	})
 
 	t.Run("group", func(t *testing.T) {
-		resp, body := f.call(http.MethodGet, "/api/v1/groups/%D0%9F%D0%9E2308/day?date=2026-09-08", nil, nil)
+		resp, body := f.call(http.MethodGet, "/api/v1/groups/%D0%93%D1%80%D1%83%D0%BF%D0%BF%D0%B0%201/day?date=2026-09-08", nil, nil)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 		day := decode[httpapi.DaySessions](t, body)
 		require.NotEmpty(t, day.Sessions)
 		for _, s := range day.Sessions {
-			require.Contains(t, s.Groups, "ПО2308")
+			require.Contains(t, s.Groups, "Группа 1")
 		}
 	})
 
@@ -489,7 +490,7 @@ func TestContractDayViews(t *testing.T) {
 	})
 
 	t.Run("teacher", func(t *testing.T) {
-		_, body := f.call(http.MethodGet, "/api/v1/search?q=Akhmetov", nil, nil)
+		_, body := f.call(http.MethodGet, "/api/v1/search?q=%D0%9F%D1%80%D0%B5%D0%BF%D0%BE%D0%B4%D0%B0%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%201", nil, nil)
 		hits := decode[httpapi.SearchResult](t, body)
 		require.NotEmpty(t, hits.Teachers)
 		id := hits.Teachers[0].Id
@@ -513,21 +514,25 @@ func TestContractSearch(t *testing.T) {
 	f := newFixture(t)
 
 	t.Run("cyrillic group code", func(t *testing.T) {
-		resp, body := f.call(http.MethodGet, "/api/v1/search?q=%D0%9F%D0%9E2308", nil, nil)
+		resp, body := f.call(http.MethodGet, "/api/v1/search?q=%D0%93%D1%80%D1%83%D0%BF%D0%BF%D0%B0%201", nil, nil)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 		hits := decode[httpapi.SearchResult](t, body)
-		require.Len(t, hits.Groups, 1)
-		require.Equal(t, "ПО2308", hits.Groups[0].Code)
+		require.NotEmpty(t, hits.Groups)
+		require.Equal(t, "Группа 1", hits.Groups[0].Code, "an exact code sorts first")
 		require.NotNil(t, hits.Teachers)
 		require.NotNil(t, hits.Rooms)
 		require.NotNil(t, hits.Courses)
 	})
 
-	t.Run("case-insensitive latin", func(t *testing.T) {
-		_, body := f.call(http.MethodGet, "/api/v1/search?q=aKhMeToV", nil, nil)
+	t.Run("case-insensitive", func(t *testing.T) {
+		// Room codes are the latin part of the data set; the roster is Cyrillic.
+		_, body := f.call(http.MethodGet, "/api/v1/search?q=ai-LaB", nil, nil)
 		hits := decode[httpapi.SearchResult](t, body)
-		require.NotEmpty(t, hits.Teachers)
-		require.Equal(t, "Akhmetov D.", hits.Teachers[0].ShortName)
+		require.NotEmpty(t, hits.Rooms)
+		require.Equal(t, "AI-LAB", hits.Rooms[0].Code)
+
+		_, body = f.call(http.MethodGet, "/api/v1/search?q=%D0%9F%D1%80%D0%B5%D0%BF%D0%BE%D0%B4%D0%B0%D0%B2%D0%B0%D1%82%D0%B5%D0%BB%D1%8C", nil, nil)
+		require.NotEmpty(t, decode[httpapi.SearchResult](t, body).Teachers)
 	})
 
 	t.Run("at most five per kind by default", func(t *testing.T) {
@@ -540,10 +545,12 @@ func TestContractSearch(t *testing.T) {
 	})
 
 	t.Run("limit is honoured", func(t *testing.T) {
-		_, body := f.call(http.MethodGet, "/api/v1/search?q=a&limit=10", nil, nil)
+		// Only five courses exist, so the roster is what can exceed the default
+		// page of five: there are twenty-four groups named "Группа N".
+		_, body := f.call(http.MethodGet, "/api/v1/search?q=%D0%93%D1%80%D1%83%D0%BF%D0%BF%D0%B0&limit=10", nil, nil)
 		hits := decode[httpapi.SearchResult](t, body)
-		require.LessOrEqual(t, len(hits.Courses), 10)
-		require.Greater(t, len(hits.Courses), 5)
+		require.LessOrEqual(t, len(hits.Groups), 10)
+		require.Greater(t, len(hits.Groups), 5)
 	})
 
 	t.Run("empty query", func(t *testing.T) {
@@ -620,6 +627,72 @@ func (f *fixture) liveLessonInRoom(code string) string {
 	return ""
 }
 
+// someTeacher is the first of the placeholder roster, read through the
+// reference endpoint the admin panel uses.
+func (f *fixture) someTeacher() httpapi.TeacherRef {
+	f.t.Helper()
+	_, body := f.call(http.MethodGet, "/api/v1/teachers", nil, nil)
+	list := decode[httpapi.TeacherList](f.t, body).Teachers
+	require.NotEmpty(f.t, list)
+	return list[0]
+}
+
+// otherTeacher is any placeholder other than the given one.
+func (f *fixture) otherTeacher(notID string) httpapi.TeacherRef {
+	f.t.Helper()
+	_, body := f.call(http.MethodGet, "/api/v1/teachers", nil, nil)
+	for _, x := range decode[httpapi.TeacherList](f.t, body).Teachers {
+		if x.Id.String() != notID {
+			return x
+		}
+	}
+	f.t.Fatal("only one teacher exists")
+	return httpapi.TeacherRef{}
+}
+
+// freeTeacherAt is a teacher with nothing booked in that weekday and slot.
+func (f *fixture) freeTeacherAt(weekday, slot int) httpapi.TeacherRef {
+	f.t.Helper()
+	_, body := f.call(http.MethodGet,
+		fmt.Sprintf("/api/v1/admin/lessons?weekday=%d", weekday), nil, f.adminHeaders())
+	busy := map[string]bool{}
+	for _, l := range decode[httpapi.LessonList](f.t, body).Lessons {
+		if int(l.SlotIdx) <= slot && slot < int(l.SlotIdx)+int(l.SlotSpan) {
+			busy[l.TeacherId.String()] = true
+		}
+	}
+	_, body = f.call(http.MethodGet, "/api/v1/teachers", nil, nil)
+	for _, x := range decode[httpapi.TeacherList](f.t, body).Teachers {
+		if !busy[x.Id.String()] {
+			return x
+		}
+	}
+	f.t.Fatalf("every teacher is busy on weekday %d slot %d", weekday, slot)
+	return httpapi.TeacherRef{}
+}
+
+// courseByCode is one of the five subjects, read through the reference endpoint.
+func (f *fixture) courseByCode(code string) httpapi.SearchCourse {
+	f.t.Helper()
+	_, body := f.call(http.MethodGet, "/api/v1/courses", nil, nil)
+	for _, c := range decode[httpapi.CourseList](f.t, body).Courses {
+		if c.Code == code {
+			return c
+		}
+	}
+	f.t.Fatalf("no course %s", code)
+	return httpapi.SearchCourse{}
+}
+
+// someSemester is the current term.
+func (f *fixture) someSemester() httpapi.Semester {
+	f.t.Helper()
+	_, body := f.call(http.MethodGet, "/api/v1/semesters", nil, nil)
+	list := decode[httpapi.SemesterList](f.t, body).Semesters
+	require.NotEmpty(f.t, list)
+	return list[0]
+}
+
 // roomDay is the room's sessions on the fixed demo date.
 func (f *fixture) roomDay(code string) []httpapi.SessionView {
 	f.t.Helper()
@@ -644,7 +717,7 @@ func TestContractCreateOverrideKinds(t *testing.T) {
 	f := newFixture(t)
 
 	t.Run("cancel by lessonId", func(t *testing.T) {
-		id := f.liveLessonInRoom("110")
+		id := f.liveLessonInRoom("100")
 		resp, body := f.call(http.MethodPost, "/api/v1/admin/overrides", map[string]any{
 			"date": "2026-09-08", "kind": "cancel", "lessonId": id, "note": "contract test",
 		}, f.adminHeaders())
@@ -662,7 +735,7 @@ func TestContractCreateOverrideKinds(t *testing.T) {
 		// …and a cancelled session no longer occupies its room.
 		_, body = f.call(http.MethodGet, "/api/v1/buildings/A/board", nil, nil)
 		for _, r := range decode[httpapi.Snapshot](t, body).Rooms {
-			if r.RoomCode == "110" {
+			if r.RoomCode == "100" {
 				require.Equal(t, httpapi.RoomPhase("free"), r.Phase)
 			}
 		}
@@ -685,20 +758,20 @@ func TestContractCreateOverrideKinds(t *testing.T) {
 	})
 
 	t.Run("move", func(t *testing.T) {
-		id := f.lessonInRoom("110")
+		id := f.lessonInRoom("100")
 		resp, body := f.call(http.MethodPost, "/api/v1/admin/overrides", map[string]any{
-			"date": "2026-09-08", "kind": "move", "lessonId": id, "newRoomCode": "111",
+			"date": "2026-09-08", "kind": "move", "lessonId": id, "newRoomCode": "224",
 		}, f.adminHeaders())
 		require.Equal(t, http.StatusCreated, resp.StatusCode)
 		ov := decode[httpapi.Override](t, body)
 		require.NotNil(t, ov.NewRoomCode)
-		require.Equal(t, "111", *ov.NewRoomCode)
+		require.Equal(t, "224", *ov.NewRoomCode)
 		require.Equal(t, httpapi.SessionStatus("moved"), f.statusOfLesson(id))
 		f.call(http.MethodDelete, "/api/v1/admin/overrides/"+ov.Id.String(), nil, f.adminHeaders())
 	})
 
 	t.Run("delay", func(t *testing.T) {
-		id := f.lessonInRoom("110")
+		id := f.lessonInRoom("100")
 		resp, body := f.call(http.MethodPost, "/api/v1/admin/overrides", map[string]any{
 			"date": "2026-09-08", "kind": "delay", "lessonId": id, "delayMinutes": 20,
 		}, f.adminHeaders())
@@ -711,10 +784,9 @@ func TestContractCreateOverrideKinds(t *testing.T) {
 	})
 
 	t.Run("reassign_teacher", func(t *testing.T) {
-		_, body := f.call(http.MethodGet, "/api/v1/search?q=Ivanova", nil, nil)
-		teacher := decode[httpapi.SearchResult](t, body).Teachers[0]
+		teacher := f.someTeacher()
 
-		id := f.lessonInRoom("110")
+		id := f.lessonInRoom("100")
 		resp, body := f.call(http.MethodPost, "/api/v1/admin/overrides", map[string]any{
 			"date": "2026-09-08", "kind": "reassign_teacher", "lessonId": id, "newTeacherId": teacher.Id.String(),
 		}, f.adminHeaders())
@@ -725,13 +797,12 @@ func TestContractCreateOverrideKinds(t *testing.T) {
 	})
 
 	t.Run("extra", func(t *testing.T) {
-		_, body := f.call(http.MethodGet, "/api/v1/search?q=Abenov", nil, nil)
-		teacher := decode[httpapi.SearchResult](t, body).Teachers[0]
+		teacher := f.someTeacher()
 
 		resp, body := f.call(http.MethodPost, "/api/v1/admin/overrides", map[string]any{
 			"date": "2026-09-08", "kind": "extra",
-			"courseCode": "OL100", "roomCode": "107", "teacherId": teacher.Id.String(),
-			"slotIdx": 9, "groupCodes": []string{"ПО2308"}, "note": "one-off",
+			"courseCode": "HK1105", "roomCode": "CR", "teacherId": teacher.Id.String(),
+			"slotIdx": 9, "groupCodes": []string{"Группа 1"}, "note": "one-off",
 		}, f.adminHeaders())
 		require.Equal(t, http.StatusCreated, resp.StatusCode)
 
@@ -739,7 +810,7 @@ func TestContractCreateOverrideKinds(t *testing.T) {
 		require.Equal(t, httpapi.OverrideKind("extra"), ov.Kind)
 		require.Nil(t, ov.LessonId)
 		require.NotNil(t, ov.RoomCode)
-		require.Equal(t, "107", *ov.RoomCode)
+		require.Equal(t, "CR", *ov.RoomCode)
 		require.NotNil(t, ov.SlotIdx)
 		require.EqualValues(t, 9, *ov.SlotIdx)
 
@@ -750,8 +821,8 @@ func TestContractCreateOverrideKinds(t *testing.T) {
 			if s.SessionId == "x:"+ov.Id.String() {
 				seen = true
 				require.Nil(t, s.LessonId)
-				require.Equal(t, "OL100", s.CourseCode)
-				require.Equal(t, []string{"ПО2308"}, s.Groups)
+				require.Equal(t, "HK1105", s.CourseCode)
+				require.Equal(t, []string{"Группа 1"}, s.Groups)
 			}
 		}
 		require.True(t, seen, "the extra session must be materialised")
@@ -762,7 +833,7 @@ func TestContractCreateOverrideKinds(t *testing.T) {
 
 func TestContractCreateOverrideValidation(t *testing.T) {
 	f := newFixture(t)
-	id := f.lessonInRoom("110")
+	id := f.lessonInRoom("100")
 
 	cases := []struct {
 		name   string
@@ -864,7 +935,7 @@ func TestSSEOverrideReachesTheStreamWithinASecond(t *testing.T) {
 	require.NotEmpty(t, before.Now)
 
 	// Cancel a running session…
-	id := f.liveLessonInRoom("213")
+	id := f.liveLessonInRoom("100")
 	postResp, postBody := f.call(http.MethodPost, "/api/v1/admin/overrides", map[string]any{
 		"date": "2026-09-08", "kind": "cancel", "lessonId": id, "note": "sse test",
 	}, f.adminHeaders())

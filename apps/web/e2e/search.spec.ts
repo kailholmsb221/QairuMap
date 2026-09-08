@@ -10,39 +10,39 @@ test('searching a group highlights its room and filters the board', async ({ pag
 
   await page.getByTestId('search-trigger').click();
   await expect(page.getByTestId('search-palette')).toBeVisible();
-  await page.getByTestId('search-input').fill('ПО2308');
+  await page.getByTestId('search-input').fill('Группа 13');
 
-  const hit = page.getByTestId('search-item-ПО2308');
+  const hit = page.getByTestId('search-item-Группа 13');
   await expect(hit).toBeVisible();
   await hit.click();
 
-  // the map badge over room 213
-  const badge = page.getByTestId('map-badge-213');
+  // the map badge over room 101, where the group is right now
+  const badge = page.getByTestId('map-badge-101');
   await expect(badge).toBeVisible();
-  await expect(badge).toContainText('213');
+  await expect(badge).toContainText('101');
   await expect(badge).toContainText('NOW');
 
-  // 213 keeps its accent stroke, every other room drops to .35
-  await expect(page.locator('#f2-room-213')).toBeVisible();
+  // 101 keeps its accent stroke, every other room drops to .35
+  await expect(page.locator('#f1-room-101')).toBeVisible();
   const dimmed = await page.evaluate(() => {
-    const other = document.querySelector('#f2-room-214');
+    const other = document.querySelector('#f1-room-CR');
     const group = other?.closest('g');
     return group?.getAttribute('opacity');
   });
   expect(dimmed).toBe('0.35');
 
   // the board is filtered to the group
-  await expect(page.getByTestId('board-filter')).toContainText('ПО2308');
+  await expect(page.getByTestId('board-filter')).toContainText('Группа 13');
   // rows leave with a 300 ms exit animation, so poll rather than counting once
   await expect
     .poll(() => page.locator('[data-testid="board"] [data-session]').count(), { timeout: 5000 })
     .toBeLessThan(rowsBefore);
-  await expect(page.locator('[data-testid="board"] [data-room="213"]').first()).toBeVisible();
+  await expect(page.locator('[data-testid="board"] [data-room="101"]').first()).toBeVisible();
 
   // Escape restores everything
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('board-filter')).toHaveCount(0);
-  await expect(page.getByTestId('map-badge-213')).toHaveCount(0);
+  await expect(page.getByTestId('map-badge-101')).toHaveCount(0);
 });
 
 test('⌘K opens the palette', async ({ page }) => {

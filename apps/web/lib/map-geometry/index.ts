@@ -68,12 +68,24 @@ export type ProjectorOptions = {
   d?: number;
   /** Vertical gap between plates, px. */
   dz?: number;
+  /** How many plates the stack holds; it is centred on z = 0. */
+  floorCount?: number;
 };
 
 export const EXPLODED_RX = 58;
 export const EXPLODED_RZ = -38;
 export const PERSPECTIVE = 2200;
 export const PLATE_GAP = 118;
+export const DEFAULT_FLOOR_COUNT = 2;
+
+/**
+ * The z of plate `floorIdx` in a stack of `floorCount` plates, centred on 0 —
+ * so two plates sit at ∓½ gap exactly where four sat at ∓½ and ∓1½.
+ * `Scene` translates the real DOM plates by the same value.
+ */
+export function plateZ(floorIdx: number, floorCount: number, dz = PLATE_GAP): number {
+  return (floorIdx - (floorCount - 1) / 2) * dz;
+}
 
 /**
  * Project a plan point on floor `floorIdx` (0-based) to stage coordinates,
@@ -84,10 +96,11 @@ export function projector(k: number, tx: number, ty: number, opts: ProjectorOpti
   const rz = rad(opts.rz ?? EXPLODED_RZ);
   const D = opts.d ?? PERSPECTIVE;
   const dz = opts.dz ?? PLATE_GAP;
+  const n = opts.floorCount ?? DEFAULT_FLOOR_COUNT;
   return (x: number, y: number, floorIdx: number): [number, number, number] => {
     const lx = (x - 300) * k;
     const ly = (y - 500) * k;
-    const z = (floorIdx - 1.5) * dz;
+    const z = plateZ(floorIdx, n, dz);
     const x1 = lx * Math.cos(rz) - ly * Math.sin(rz);
     const y1 = lx * Math.sin(rz) + ly * Math.cos(rz);
     const y2 = y1 * Math.cos(rx) - z * Math.sin(rx);
@@ -111,6 +124,13 @@ export type ExplodedFit = {
 };
 
 /**
+ * Room kept free on the east side of the stack for the `F2 · 7 busy` labels that
+ * hang off it. With four thin plates the fit was height-bound and the labels had
+ * room by accident; with two it is width-bound, so the reserve is explicit.
+ */
+export const LABEL_RESERVE = 132;
+
+/**
  * The fit-to-stage loop of `explodedScene()`: four refinement passes that scale
  * and centre the whole stack inside the stage.
  */
@@ -119,19 +139,26 @@ export function fitExploded(
   floorCount: number,
   stageW: number,
   stageH: number,
-  opts: ProjectorOptions & { margin?: { x: number; y: number }; shiftY?: number } = {},
+  opts: ProjectorOptions & {
+    margin?: { x: number; y: number };
+    shiftY?: number;
+    /** Extra width kept clear to the east of the stack, for the floor labels. */
+    reserveRight?: number;
+  } = {},
 ): ExplodedFit {
   const margin = opts.margin ?? {
     x: Math.round(stageW * 0.084),
     y: Math.round(stageH * 0.07),
   };
+  const reserveRight = opts.reserveRight ?? LABEL_RESERVE;
   const shiftY = opts.shiftY ?? 0;
+  const projOpts: ProjectorOptions = { ...opts, floorCount };
   let k = 0.9;
   let tx = 0;
   let ty = 0;
 
   for (let it = 0; it < 4; it++) {
-    const P = projector(k, tx, ty, opts);
+    const P = projector(k, tx, ty, projOpts);
     let x0 = Infinity;
     let y0 = Infinity;
     let x1 = -Infinity;
@@ -148,9 +175,13 @@ export function fitExploded(
     const w = x1 - x0;
     const h = y1 - y0;
     if (!Number.isFinite(w) || w <= 0 || h <= 0) break;
-    const fit = Math.min((stageW - 2 * margin.x) / w, (stageH - 2 * margin.y) / h);
+    const fit = Math.min(
+      (stageW - 2 * margin.x - reserveRight) / w,
+      (stageH - 2 * margin.y) / h,
+    );
     k *= fit;
-    tx -= (x0 + x1) / 2;
+    // centre the stack in what is left once the label gutter is taken off the east
+    tx -= (x0 + x1) / 2 + reserveRight / 2;
     ty -= (y0 + y1) / 2 - shiftY;
   }
 
@@ -160,7 +191,7 @@ export function fitExploded(
     ty,
     width: 600 * k,
     height: 1000 * k,
-    project: projector(k, tx, ty, opts),
+    project: projector(k, tx, ty, projOpts),
   };
 }
 

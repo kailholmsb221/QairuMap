@@ -34,6 +34,22 @@ test.describe('one screen, no scrolling', () => {
     });
   }
 
+  test('the admin route never scrolls sideways', async ({ page }) => {
+    // The panel is a working tool, so a scroll *inside* the grid is expected and
+    // correct; the page itself must still never scroll horizontally.
+    for (const vp of VIEWPORTS) {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto('/admin');
+      await page.waitForSelector('[data-testid="grid"]');
+      await page.waitForTimeout(800);
+      const box = await page.evaluate(() => {
+        const el = document.documentElement;
+        return { scrollWidth: el.scrollWidth, clientWidth: el.clientWidth };
+      });
+      expect(box.scrollWidth, vp.name).toBe(box.clientWidth);
+    }
+  });
+
   test('the kiosk route does not scroll either', async ({ page }) => {
     await page.setViewportSize({ width: 3840, height: 2160 });
     await page.goto('/kiosk?floorCycle=20s&page=8s');

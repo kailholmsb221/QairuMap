@@ -13,24 +13,25 @@ One glance answers: which classes are running right now, in which rooms, taught 
 | | |
 |---|---|
 | **NOW / NEXT board** | Airport split-flap rows, sorted by end time and start time. Fits its rows to the available height and pages like a departures board when there are more classes than rows — it never scrolls. |
-| **2.5D building map** | Four floor plates stacked in an exploded view; click a plate (or a floor tab) and it lies flat, scales up and grows a chip on every room with the course and a countdown. Rooms are painted by phase: free, starts-soon, live, ending, delayed, conflicted. |
+| **2.5D building map** | The building's two floor plates stacked in an exploded view; click a plate (or a floor tab) and it lies flat, scales up and grows a chip on every room with the course and a countdown. Rooms are painted by phase: free, starts-soon, live, ending, delayed, conflicted. |
 | **Live** | Server-Sent Events push a complete snapshot on every phase transition and after every admin override. Budget: under one second, end to end. |
 | **Time travel** | A 4 px line under the map expands into the whole day with an occupancy heat strip. Scrub it and the board rebuilds from the server for that instant, tagged `SIMULATED`. |
 | **Search** | ⌘K over teachers, groups, rooms and courses. Picking a hit badges the matching rooms on the map and filters the board. |
 | **Kiosk** | `/kiosk` — no chrome, no cursor, floor focus and board pages rotating on their own. |
+| **Admin panel** | `/admin` — the weekly grid of the 13 schedulable rooms × 10 slots. Put a class in a free cell, edit or delete one, undo a day's changes, rename the placeholder teachers and groups, post a ticker line. Every write reaches every open board over SSE. |
 | **Demo mode** | A deterministic seed, a settable server clock, and a hidden admin panel that cancels, moves and delays classes so the board visibly reacts on camera. |
 
 ### The states, all designed and implemented
 
 | Focus view + room detail | Search highlight |
 |---|---|
-| ![Floor 2 focused, room 213 selected](docs/screenshots/02-focus-floor-2-room-213.png) | ![Searching ПО2308](docs/screenshots/04-search-highlight.png) |
+| ![Floor 2 focused, room 226 selected](docs/screenshots/02-focus-floor-2-room-226.png) | ![Searching Группа 13](docs/screenshots/04-search-highlight.png) |
 
 | Time travel — 20:00, simulated | Kiosk (floor auto-rotate) |
 |---|---|
 | ![After hours](docs/screenshots/08-after-hours.png) | ![Kiosk](docs/screenshots/06-kiosk.png) |
 
-Also implemented and screenshotted: `docs/screenshots/03-search.png` (palette open), `05-time-travel.png` (bar expanded at 14:05), `07-1280x720.png` (the compact layout, still no scroll), `09-api-down.png` (schedule service unreachable, last-known map intact).
+Also implemented and screenshotted: `docs/screenshots/03-search.png` (palette open), `05-time-travel.png` (bar expanded at 14:05), `07-1280x720.png` (the compact layout, still no scroll), `09-api-down.png` (schedule service unreachable, last-known map intact), `10-admin.png` (`/admin` — the weekly grid).
 
 ---
 
@@ -63,7 +64,7 @@ Also implemented and screenshotted: `docs/screenshots/03-search.png` (palette op
                         │  repo (pgx + sqlc) ─────────────────────────────▶ PostgreSQL 16       │
                         └──────────────────────────────────────────────────────────────────────┘
 
-  packages/map-data:  svg/floor-{1..4}.svg ──svg2map.ts──▶ building-a.json ──▶ web (render)
+  packages/map-data:  svg/floor-{1,2}.svg ──svg2map.ts──▶ building-a.json ──▶ web (render)
                                                                             └▶ cmd/seed (rooms)
 ```
 
@@ -71,7 +72,7 @@ Three rules hold the design together:
 
 1. **The server is the only source of truth for status.** `internal/engine` is pure Go with no I/O; the frontend derives nothing but progress percentages and countdowns from timestamps. There is no second phase implementation in TypeScript to drift.
 2. **A day is materialised on the fly.** The database stores recurring `lessons` plus per-date `session_overrides`; concrete sessions are never persisted. Importing a real schedule means writing rows in those two tables — nothing else changes.
-3. **Geometry is data.** `packages/map-data/svg/floor-{n}.svg` is the source of truth; `pnpm map:build` turns it into `building-a.json`, which both the web app and the seed read. No coordinate is hard-coded anywhere in either codebase.
+3. **Geometry is data.** `packages/map-data/svg/floor-{1,2}.svg` is the source of truth; `pnpm map:build` turns it into `building-a.json`, which both the web app and the seed read. No coordinate is hard-coded anywhere in either codebase.
 
 `docs/ARCHITECTURE.md` is the full document (in Russian) — domain model, database schema, engine specification, API contract, motion budget and phase plan.
 
@@ -128,12 +129,13 @@ Everything reacts live while you record.
 | Command | What it does |
 |---|---|
 | `pnpm dev` | web (3000) + api (8080) through Turborepo |
-| `pnpm map:build` | `svg/floor-{1..4}.svg` → `building-a.json`, with validation |
+| `pnpm map:build` | `svg/floor-{1,2}.svg` → `building-a.json`, with validation |
 | `pnpm contracts:generate` | `openapi.yaml` → `packages/contracts/src/types.gen.ts` |
 | `pnpm seed [--reset]` | migrations + demo data |
 | `pnpm lint` · `pnpm typecheck` · `pnpm test` | web + package gates |
 | `pnpm e2e` | Playwright against a running API with a fixed clock |
 | `pnpm --filter web shots` | regenerates `docs/screenshots/` |
+| `/admin` | the admin panel — set `NEXT_PUBLIC_ADMIN_API_KEY` (or paste the key into the page) |
 | `cd services/api && make test` | `go vet`, `go test -race -cover`, `golangci-lint` |
 
 Regenerate the Go server types after editing the contract:

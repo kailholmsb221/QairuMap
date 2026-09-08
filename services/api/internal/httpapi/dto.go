@@ -198,16 +198,7 @@ func searchResultDTO(res repo.SearchResult) SearchResult {
 		out.Teachers = append(out.Teachers, hit)
 	}
 	for _, g := range res.Groups {
-		hit := SearchGroup{Id: g.ID, Code: g.Code}
-		if g.Program != "" {
-			p := g.Program
-			hit.Program = &p
-		}
-		if g.CourseYear != 0 {
-			y := int32(g.CourseYear) //nolint:gosec // 1..6
-			hit.CourseYear = &y
-		}
-		out.Groups = append(out.Groups, hit)
+		out.Groups = append(out.Groups, groupDTO(g))
 	}
 	for _, r := range res.Rooms {
 		out.Rooms = append(out.Rooms, SearchRoom{
@@ -217,7 +208,159 @@ func searchResultDTO(res repo.SearchResult) SearchResult {
 		})
 	}
 	for _, c := range res.Courses {
-		out.Courses = append(out.Courses, SearchCourse{Id: c.ID, Code: c.Code, Title: c.Title})
+		out.Courses = append(out.Courses, courseDTO(c))
+	}
+	return out
+}
+
+// groupDTO renders a student group. `SearchGroup` is the one shape the contract
+// uses for a group everywhere — search hits, `listGroups` and the admin writes.
+func groupDTO(g domain.Group) SearchGroup {
+	hit := SearchGroup{Id: g.ID, Code: g.Code}
+	if g.Program != "" {
+		p := g.Program
+		hit.Program = &p
+	}
+	if g.CourseYear != 0 {
+		y := int32(g.CourseYear) //nolint:gosec // 1..6
+		hit.CourseYear = &y
+	}
+	return hit
+}
+
+// courseDTO renders a course, likewise shared by search, `listCourses` and the
+// admin writes.
+func courseDTO(c domain.Course) SearchCourse {
+	out := SearchCourse{Id: c.ID, Code: c.Code, Title: c.Title}
+	if c.Department != "" {
+		dept := c.Department
+		out.Department = &dept
+	}
+	return out
+}
+
+// roomInfoDTO is the geometry-free view of a room the admin panel picks from.
+func roomInfoDTO(r domain.Room) RoomInfo {
+	out := RoomInfo{
+		Id:          r.ID,
+		Code:        r.Code,
+		Name:        r.Name,
+		Floor:       int32(r.Floor), //nolint:gosec // 1..2
+		Type:        RoomType(r.Type),
+		Wing:        Wing(r.Wing),
+		Schedulable: r.Schedulable,
+	}
+	if r.Capacity != nil {
+		c := int32(*r.Capacity) //nolint:gosec // seats
+		out.Capacity = &c
+	}
+	return out
+}
+
+// slotInfoDTO renders a lesson slot with its local `HH:MM` bounds.
+func slotInfoDTO(s domain.TimeSlot) SlotInfo {
+	return SlotInfo{
+		Id:       s.ID,
+		Idx:      int32(s.Idx), //nolint:gosec // 1..10
+		StartsAt: s.StartsAt.String(),
+		EndsAt:   s.EndsAt.String(),
+	}
+}
+
+// semesterDTO renders a term.
+func semesterDTO(s domain.Semester) Semester {
+	return Semester{
+		Id:          s.ID,
+		Name:        s.Name,
+		StartsOn:    s.StartsOn.String(),
+		EndsOn:      s.EndsOn.String(),
+		Week1Parity: WeekParity(s.Week1Parity),
+	}
+}
+
+// lessonDTO renders one entry of the weekly grid. `startsAt` / `endsAt` bound
+// the whole slot range the lesson occupies, so a two-slot lecture reports
+// 10:00–11:50 rather than 10:00–10:50.
+func lessonDTO(row repo.LessonRow, slots []domain.TimeSlot) Lesson {
+	groups := make([]GroupRef, 0, len(row.Groups))
+	for _, g := range row.Groups {
+		groups = append(groups, GroupRef{Id: g.ID, Code: g.Code})
+	}
+
+	startsAt, endsAt := "", ""
+	for _, s := range slots {
+		if s.Idx == row.SlotIdx {
+			startsAt = s.StartsAt.String()
+			endsAt = s.EndsAt.String()
+		}
+		if s.Idx == row.SlotIdx+row.SlotSpan-1 {
+			endsAt = s.EndsAt.String()
+		}
+	}
+
+	return Lesson{
+		Id:          row.ID,
+		SemesterId:  row.SemesterID,
+		CourseId:    row.CourseID,
+		CourseCode:  row.CourseCode,
+		CourseTitle: row.CourseTitle,
+		TeacherId:   row.TeacherID,
+		TeacherName: row.TeacherName,
+		RoomId:      row.RoomID,
+		RoomCode:    row.RoomCode,
+		SlotId:      row.SlotID,
+		SlotIdx:     int32(row.SlotIdx), //nolint:gosec // 1..10
+		StartsAt:    startsAt,
+		EndsAt:      endsAt,
+		Weekday:     int32(row.Weekday), //nolint:gosec // 1..7
+		Parity:      LessonParity(row.Parity),
+		Type:        LessonType(row.Type),
+		SlotSpan:    int32(row.SlotSpan), //nolint:gosec // 1..2
+		Groups:      groups,
+	}
+}
+
+// overrideFromDomain renders a stored override read back off the day timeline,
+// as `listOverrides` reports it. `createOverride` uses overrideDTO instead,
+// which reads the same row through the narrower insert-and-return query.
+func overrideFromDomain(o domain.Override) Override {
+	out := Override{
+		Id:        o.ID,
+		Date:      o.Date.String(),
+		Kind:      OverrideKind(o.Kind),
+		CreatedAt: o.CreatedAt.UTC(),
+	}
+	if o.LessonID != nil {
+		id := *o.LessonID
+		out.LessonId = &id
+	}
+	if o.NewRoom != nil {
+		code := o.NewRoom.Code
+		if o.Kind == domain.OverrideExtra {
+			out.RoomCode = &code
+		} else {
+			out.NewRoomCode = &code
+		}
+	}
+	if o.NewTeacher != nil {
+		id := o.NewTeacher.ID
+		out.NewTeacherId = &id
+	}
+	if o.DelayMinutes != nil {
+		m := int32(*o.DelayMinutes) //nolint:gosec // minutes
+		out.DelayMinutes = &m
+	}
+	if o.Course != nil {
+		code := o.Course.Code
+		out.CourseCode = &code
+	}
+	if o.Slot != nil {
+		idx := int32(o.Slot.Idx) //nolint:gosec // 1..10
+		out.SlotIdx = &idx
+	}
+	if o.Note != "" {
+		note := o.Note
+		out.Note = &note
 	}
 	return out
 }

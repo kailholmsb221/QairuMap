@@ -195,6 +195,13 @@ type Group struct {
 	CourseYear int
 }
 
+// GroupRef is a student group reduced to what a lesson row shows: who it is
+// and how to address it. The admin API hands these back with every lesson.
+type GroupRef struct {
+	ID   uuid.UUID
+	Code string
+}
+
 // Course is a subject.
 type Course struct {
 	ID         uuid.UUID

@@ -78,7 +78,7 @@ function Shape({
             }
           : { 'aria-hidden': true, pointerEvents: 'none' as const })}
       />
-      {room.type === 'void' && room.code === 'ATRIUM' ? (
+      {room.type === 'void' && room.code === 'VOID-2' ? (
         <rect
           x={room.bbox.x + room.bbox.w / 2 - 12}
           y={room.bbox.y}

@@ -193,6 +193,50 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/v1/buildings/{code}/rooms:
+    get:
+      operationId: listBuildingRooms
+      security: []   # public, read-only
+      tags: [buildings]
+      summary: Rooms of a building
+      description: |
+        Every space of the building as a flat list — the attribute half of `getBuildingMap`
+        without any geometry. The admin panel uses it to populate the room picker and to
+        decide which rooms may host a lesson (`schedulable`, `type`).
+      parameters:
+        - $ref: "#/components/parameters/BuildingCodePath"
+      responses:
+        "200":
+          description: Every room of the building, ordered by floor then code.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomList"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/buildings/{code}/slots:
+    get:
+      operationId: listBuildingSlots
+      security: []   # public, read-only
+      tags: [buildings]
+      summary: Lesson time slots of a building
+      description: |
+        The building's numbered lesson slots with their **local** wall-clock times
+        (`HH:MM`, resolved through `Building.timezone`). `idx` is the 1-based index the
+        admin API takes as `slotIdx`.
+      parameters:
+        - $ref: "#/components/parameters/BuildingCodePath"
+      responses:
+        "200":
+          description: Time slots, ordered by `idx`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SlotList"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/v1/rooms/{code}/day:
     get:
       operationId: getRoomDay
@@ -317,6 +361,68 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequest"
 
+  /api/v1/teachers:
+    get:
+      operationId: listTeachers
+      security: []   # public, read-only
+      tags: [schedule]
+      summary: Every teacher
+      description: |
+        The whole teacher table, ordered by `shortName`. Reference data for the admin
+        panel's pickers; `search` remains the right endpoint for type-ahead.
+      responses:
+        "200":
+          description: Every teacher.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeacherList"
+
+  /api/v1/groups:
+    get:
+      operationId: listGroups
+      security: []   # public, read-only
+      tags: [schedule]
+      summary: Every student group
+      responses:
+        "200":
+          description: Every student group, ordered by `code`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupList"
+
+  /api/v1/courses:
+    get:
+      operationId: listCourses
+      security: []   # public, read-only
+      tags: [schedule]
+      summary: Every course
+      responses:
+        "200":
+          description: Every course, ordered by `code`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseList"
+
+  /api/v1/semesters:
+    get:
+      operationId: listSemesters
+      security: []   # public, read-only
+      tags: [schedule]
+      summary: Every semester
+      description: |
+        The terms lessons can be attached to, ordered by `startsOn`. The admin panel
+        defaults new lessons to the semester containing today.
+      responses:
+        "200":
+          description: Every semester.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SemesterList"
+
   /api/v1/events:
     get:
       operationId: streamEvents
@@ -397,6 +503,28 @@ paths:
                 $ref: "#/components/schemas/TimeInfo"
 
   /api/v1/admin/overrides:
+    get:
+      operationId: listOverrides
+      tags: [admin]
+      summary: List the overrides of one date
+      description: |
+        Every point change stored for a local building date, oldest first. The admin panel
+        lists them so a change can be undone with `deleteOverride`.
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/DateQuery"
+      responses:
+        "200":
+          description: The overrides of that date.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OverrideList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     post:
       operationId: createOverride
       tags: [admin]
@@ -486,6 +614,394 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /api/v1/admin/lessons:
+    get:
+      operationId: listLessons
+      tags: [admin]
+      summary: List recurring lessons
+      description: |
+        The recurring schedule itself — the `lessons` templates the engine materialises into
+        sessions every day. This is what the admin panel edits when a timetabler "puts a pair
+        on the grid".
+
+        Every filter is optional and they combine with AND. Without `semesterId` the semester
+        containing the server's current local date is used.
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: semesterId
+          in: query
+          required: false
+          description: Restrict to one semester. Defaults to the semester containing today.
+          schema:
+            type: string
+            format: uuid
+        - name: weekday
+          in: query
+          required: false
+          description: ISO weekday, 1 = Monday … 7 = Sunday.
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 7
+        - name: roomCode
+          in: query
+          required: false
+          description: Restrict to one room.
+          schema:
+            type: string
+            examples: ["AI-LAB"]
+        - name: teacherId
+          in: query
+          required: false
+          description: Restrict to one teacher.
+          schema:
+            type: string
+            format: uuid
+        - name: groupCode
+          in: query
+          required: false
+          description: Restrict to the lessons one student group attends.
+          schema:
+            type: string
+            examples: ["Группа 7"]
+      responses:
+        "200":
+          description: Matching lessons, ordered by weekday, slot and room.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LessonList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: createLesson
+      tags: [admin]
+      summary: Add a recurring lesson
+      description: |
+        Places a lesson on the weekly grid and rebuilds the board immediately, so every open
+        screen shows it within a second.
+
+        **Validation.** `400` when the room is not `schedulable`, when the room type does not
+        suit the lesson type (a `lab` lesson only in a `lab` room, a `lecture` only in a
+        `lecture` room, a `practice` in any schedulable room), when the slot span would run
+        past the last slot of the day, or when `groupCodes` is empty. `404` when the semester,
+        course, teacher, room or one of the groups does not exist. `409` when the room, the
+        teacher or any of the groups is already taken on that weekday in one of the slots the
+        lesson spans, for a week parity that overlaps (`all` collides with everything; `odd`
+        and `even` do not collide with each other).
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LessonCreate"
+      responses:
+        "201":
+          description: The created lesson.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lesson"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/admin/lessons/{id}:
+    patch:
+      operationId: updateLesson
+      tags: [admin]
+      summary: Edit a recurring lesson
+      description: |
+        Every field is optional; omitted fields keep their stored value. The same validation
+        and the same conflict checks as `createLesson` run against the merged lesson, ignoring
+        the lesson itself. The board is rebuilt immediately.
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LessonIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LessonUpdate"
+      responses:
+        "200":
+          description: The updated lesson.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lesson"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    delete:
+      operationId: deleteLesson
+      tags: [admin]
+      summary: Remove a recurring lesson
+      description: |
+        Deletes the template and every override attached to it, then rebuilds the board.
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/LessonIdPath"
+      responses:
+        "204":
+          description: Lesson deleted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/admin/teachers:
+    post:
+      operationId: createTeacher
+      tags: [admin]
+      summary: Add a teacher
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeacherCreate"
+      responses:
+        "201":
+          description: The created teacher.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeacherRef"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/admin/teachers/{id}:
+    patch:
+      operationId: updateTeacher
+      tags: [admin]
+      summary: Rename a teacher
+      description: |
+        The seeded staff are placeholders (`Преподаватель 1` …); this is how they get their
+        real names. The name is on every board row, so the snapshot is rebuilt immediately.
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/EntityIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeacherUpdate"
+      responses:
+        "200":
+          description: The updated teacher.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeacherRef"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteTeacher
+      tags: [admin]
+      summary: Remove a teacher
+      description: "`409` while the teacher still teaches a lesson or is named by an override."
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/EntityIdPath"
+      responses:
+        "204":
+          description: Teacher deleted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/admin/groups:
+    post:
+      operationId: createGroup
+      tags: [admin]
+      summary: Add a student group
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupCreate"
+      responses:
+        "201":
+          description: The created group.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchGroup"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/admin/groups/{id}:
+    patch:
+      operationId: updateGroup
+      tags: [admin]
+      summary: Rename a student group
+      description: |
+        The seeded groups are placeholders (`Группа 1` …). Their code is shown on every board
+        row, so the snapshot is rebuilt immediately.
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/EntityIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupUpdate"
+      responses:
+        "200":
+          description: The updated group.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchGroup"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    delete:
+      operationId: deleteGroup
+      tags: [admin]
+      summary: Remove a student group
+      description: "`409` while the group is still enrolled in a lesson."
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/EntityIdPath"
+      responses:
+        "204":
+          description: Group deleted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/admin/courses:
+    post:
+      operationId: createCourse
+      tags: [admin]
+      summary: Add a course
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseCreate"
+      responses:
+        "201":
+          description: The created course.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchCourse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/admin/courses/{id}:
+    patch:
+      operationId: updateCourse
+      tags: [admin]
+      summary: Edit a course
+      description: The title is on every board row, so the snapshot is rebuilt immediately.
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/EntityIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseUpdate"
+      responses:
+        "200":
+          description: The updated course.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchCourse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    delete:
+      operationId: deleteCourse
+      tags: [admin]
+      summary: Remove a course
+      description: "`409` while the course is still taught by a lesson or an override."
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/EntityIdPath"
+      responses:
+        "204":
+          description: Course deleted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
 components:
   securitySchemes:
     ApiKeyAuth:
@@ -533,6 +1049,22 @@ components:
         type: string
         pattern: "^\\d{4}-\\d{2}-\\d{2}$"
         examples: ["2026-09-08"]
+    LessonIdPath:
+      name: id
+      in: path
+      required: true
+      description: Lesson template id returned by `createLesson` or `listLessons`.
+      schema:
+        type: string
+        format: uuid
+    EntityIdPath:
+      name: id
+      in: path
+      required: true
+      description: Id of the teacher, student group or course being edited.
+      schema:
+        type: string
+        format: uuid
     IfNoneMatch:
       name: If-None-Match
       in: header
@@ -650,6 +1182,13 @@ components:
       type: string
       description: Parity of the current teaching week, counted from `semester.starts_on`.
       enum: [odd, even]
+    LessonParity:
+      type: string
+      description: |
+        Which teaching weeks a recurring lesson runs in: `all` every week, `odd` only in
+        odd-numbered weeks, `even` only in even ones. Two lessons in the same room, slot and
+        weekday collide unless one is `odd` and the other `even`.
+      enum: [all, odd, even]
 
     # --------------------------------------------------------------- geometry --
     Building:
@@ -1199,9 +1738,13 @@ components:
           format: uuid
         code:
           type: string
-          examples: ["CS201"]
+          examples: ["AIF1303"]
         title:
           type: string
+          examples: ["Основы искусственного интеллекта"]
+        department:
+          type: string
+          description: Owning department. Absent when the course carries none.
 
     SearchResult:
       type: object
@@ -1224,6 +1767,144 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SearchCourse"
+
+    # -------------------------------------------------------- reference data --
+    RoomInfo:
+      type: object
+      description: |
+        One space of a building without its geometry — what the admin panel needs to pick a
+        room. `schedulable` and `type` are the two fields the lesson validator checks.
+      required: [id, code, name, floor, type, wing, schedulable]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          examples: ["AI-LAB"]
+        name:
+          type: string
+          examples: ["AI зертханасы"]
+        floor:
+          type: integer
+          format: int32
+          examples: [2]
+        type:
+          $ref: "#/components/schemas/RoomType"
+        wing:
+          $ref: "#/components/schemas/Wing"
+        capacity:
+          type: integer
+          format: int32
+          description: Seats. Absent for spaces where capacity is meaningless.
+        schedulable:
+          type: boolean
+
+    RoomList:
+      type: object
+      description: Every room of a building, ordered by floor then code.
+      required: [rooms]
+      properties:
+        rooms:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoomInfo"
+
+    SlotInfo:
+      type: object
+      description: |
+        One numbered lesson slot. `startsAt` / `endsAt` are **local** wall-clock times
+        `HH:MM`, not instants — the engine resolves them through `Building.timezone`.
+      required: [id, idx, startsAt, endsAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        idx:
+          type: integer
+          format: int32
+          description: 1-based index within the building; this is the admin API's `slotIdx`.
+          examples: [3]
+        startsAt:
+          type: string
+          pattern: "^\\d{2}:\\d{2}$"
+          examples: ["10:00"]
+        endsAt:
+          type: string
+          pattern: "^\\d{2}:\\d{2}$"
+          examples: ["10:50"]
+
+    SlotList:
+      type: object
+      description: The building's lesson slots, ordered by `idx`.
+      required: [slots]
+      properties:
+        slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/SlotInfo"
+
+    TeacherList:
+      type: object
+      description: Every teacher, ordered by `shortName`.
+      required: [teachers]
+      properties:
+        teachers:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeacherRef"
+
+    GroupList:
+      type: object
+      description: Every student group, ordered by `code`.
+      required: [groups]
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchGroup"
+
+    CourseList:
+      type: object
+      description: Every course, ordered by `code`.
+      required: [courses]
+      properties:
+        courses:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchCourse"
+
+    Semester:
+      type: object
+      description: One teaching term. Week numbers and parity are counted from `startsOn`.
+      required: [id, name, startsOn, endsOn, week1Parity]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          examples: ["Осенний семестр 2026"]
+        startsOn:
+          type: string
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+          examples: ["2026-08-24"]
+        endsOn:
+          type: string
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+          examples: ["2026-12-20"]
+        week1Parity:
+          $ref: "#/components/schemas/WeekParity"
+
+    SemesterList:
+      type: object
+      description: Every semester, ordered by `startsOn`.
+      required: [semesters]
+      properties:
+        semesters:
+          type: array
+          items:
+            $ref: "#/components/schemas/Semester"
 
     # ------------------------------------------------------------------ clock --
     TimeInfo:
@@ -1407,6 +2088,311 @@ components:
         endsAt:
           type: string
           format: date-time
+
+    OverrideList:
+      type: object
+      description: The overrides stored for one local date, oldest first.
+      required: [overrides]
+      properties:
+        overrides:
+          type: array
+          items:
+            $ref: "#/components/schemas/Override"
+
+    # --------------------------------------------------- recurring schedule --
+    GroupRef:
+      type: object
+      description: A student group attending a lesson.
+      required: [id, code]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          examples: ["Группа 7"]
+
+    Lesson:
+      type: object
+      description: |
+        One entry of the recurring weekly grid — a row of the `lessons` table joined with the
+        names the admin panel shows. The engine materialises it into a `SessionView` for every
+        matching date; nothing here is date-specific.
+
+        `startsAt` / `endsAt` are the **local** wall-clock bounds of the slot range the lesson
+        occupies: the start of slot `slotIdx` and the end of slot `slotIdx + slotSpan - 1`.
+      required:
+        - id
+        - semesterId
+        - courseId
+        - courseCode
+        - courseTitle
+        - teacherId
+        - teacherName
+        - roomId
+        - roomCode
+        - slotId
+        - slotIdx
+        - startsAt
+        - endsAt
+        - weekday
+        - parity
+        - type
+        - slotSpan
+        - groups
+      properties:
+        id:
+          type: string
+          format: uuid
+        semesterId:
+          type: string
+          format: uuid
+        courseId:
+          type: string
+          format: uuid
+        courseCode:
+          type: string
+          examples: ["AIF1303"]
+        courseTitle:
+          type: string
+          examples: ["Основы искусственного интеллекта"]
+        teacherId:
+          type: string
+          format: uuid
+        teacherName:
+          type: string
+          description: The teacher's `shortName`.
+          examples: ["Преподаватель 4"]
+        roomId:
+          type: string
+          format: uuid
+        roomCode:
+          type: string
+          examples: ["AI-LAB"]
+        slotId:
+          type: string
+          format: uuid
+        slotIdx:
+          type: integer
+          format: int32
+          examples: [3]
+        startsAt:
+          type: string
+          pattern: "^\\d{2}:\\d{2}$"
+          examples: ["10:00"]
+        endsAt:
+          type: string
+          pattern: "^\\d{2}:\\d{2}$"
+          examples: ["10:50"]
+        weekday:
+          type: integer
+          format: int32
+          description: ISO weekday, 1 = Monday … 7 = Sunday.
+          minimum: 1
+          maximum: 7
+          examples: [2]
+        parity:
+          $ref: "#/components/schemas/LessonParity"
+        type:
+          $ref: "#/components/schemas/LessonType"
+        slotSpan:
+          type: integer
+          format: int32
+          description: How many consecutive slots the lesson occupies.
+          minimum: 1
+          maximum: 2
+          examples: [1]
+        groups:
+          type: array
+          description: Student groups attending, ordered by code.
+          items:
+            $ref: "#/components/schemas/GroupRef"
+
+    LessonList:
+      type: object
+      description: Matching lessons, ordered by weekday, slot index and room code.
+      required: [lessons]
+      properties:
+        lessons:
+          type: array
+          items:
+            $ref: "#/components/schemas/Lesson"
+
+    LessonCreate:
+      type: object
+      description: |
+        A new entry on the weekly grid. `semesterId` defaults to the semester containing the
+        server's current local date; `slotSpan` defaults to 1.
+      required: [courseId, teacherId, roomCode, slotIdx, weekday, parity, type, groupCodes]
+      properties:
+        semesterId:
+          type: string
+          format: uuid
+        courseId:
+          type: string
+          format: uuid
+        teacherId:
+          type: string
+          format: uuid
+        roomCode:
+          type: string
+          examples: ["AI-LAB"]
+        slotIdx:
+          type: integer
+          format: int32
+          minimum: 1
+          examples: [3]
+        weekday:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 7
+          examples: [2]
+        parity:
+          $ref: "#/components/schemas/LessonParity"
+        type:
+          $ref: "#/components/schemas/LessonType"
+        slotSpan:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 2
+          default: 1
+        groupCodes:
+          type: array
+          description: Codes of the attending student groups. At least one.
+          minItems: 1
+          items:
+            type: string
+          examples: [["Группа 7", "Группа 8"]]
+
+    LessonUpdate:
+      type: object
+      description: |
+        A partial edit of one lesson. Every field is optional; the omitted ones keep their
+        stored value, and the conflict checks run against the merged result.
+      properties:
+        semesterId:
+          type: string
+          format: uuid
+        courseId:
+          type: string
+          format: uuid
+        teacherId:
+          type: string
+          format: uuid
+        roomCode:
+          type: string
+        slotIdx:
+          type: integer
+          format: int32
+          minimum: 1
+        weekday:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 7
+        parity:
+          $ref: "#/components/schemas/LessonParity"
+        type:
+          $ref: "#/components/schemas/LessonType"
+        slotSpan:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 2
+        groupCodes:
+          type: array
+          description: Replaces the whole attendance list when present.
+          minItems: 1
+          items:
+            type: string
+
+    # ----------------------------------------------------- reference editing --
+    TeacherCreate:
+      type: object
+      required: [fullName, shortName]
+      properties:
+        fullName:
+          type: string
+          minLength: 1
+        shortName:
+          type: string
+          minLength: 1
+          description: Board-sized name.
+        department:
+          type: string
+
+    TeacherUpdate:
+      type: object
+      description: A partial rename. At least one field must be present.
+      properties:
+        fullName:
+          type: string
+          minLength: 1
+        shortName:
+          type: string
+          minLength: 1
+        department:
+          type: string
+
+    GroupCreate:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          minLength: 1
+          examples: ["Группа 7"]
+        program:
+          type: string
+        courseYear:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 6
+
+    GroupUpdate:
+      type: object
+      description: A partial rename. At least one field must be present.
+      properties:
+        code:
+          type: string
+          minLength: 1
+        program:
+          type: string
+        courseYear:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 6
+
+    CourseCreate:
+      type: object
+      required: [code, title]
+      properties:
+        code:
+          type: string
+          minLength: 1
+          examples: ["AIF1303"]
+        title:
+          type: string
+          minLength: 1
+        department:
+          type: string
+
+    CourseUpdate:
+      type: object
+      description: A partial edit. At least one field must be present.
+      properties:
+        code:
+          type: string
+          minLength: 1
+        title:
+          type: string
+          minLength: 1
+        department:
+          type: string
 
     # -------------------------------------------------------------------- ops --
     Health:

@@ -28,13 +28,14 @@ describe('pillKindOf', () => {
 
 describe('displayRoomCode', () => {
   it('keeps a moved row in the original room column', () => {
-    expect(displayRoomCode(session({ status: 'moved', roomCode: '414', movedFromRoomCode: '412' })))
-      .toBe('412');
+    // the seeded move of the demo day: 226A is closed, the class runs in 101
+    expect(displayRoomCode(session({ status: 'moved', roomCode: '101', movedFromRoomCode: '226A' })))
+      .toBe('226A');
   });
 
   it('uses the effective room for everything else', () => {
-    expect(displayRoomCode(session({ roomCode: '213' }))).toBe('213');
-    expect(displayRoomCode(session({ roomCode: '414', movedFromRoomCode: '412' }))).toBe('414');
+    expect(displayRoomCode(session({ roomCode: '100' }))).toBe('100');
+    expect(displayRoomCode(session({ roomCode: '101', movedFromRoomCode: '226A' }))).toBe('101');
   });
 });
 
@@ -62,11 +63,11 @@ describe('phasesByFloor', () => {
   it('collects only the rooms of one floor', () => {
     const s = snapshot({
       rooms: [
-        roomState({ roomCode: '213', floor: 2, phase: 'live' }),
+        roomState({ roomCode: 'AI-LAB', floor: 2, phase: 'live' }),
         roomState({ roomCode: '101', floor: 1, phase: 'ending' }),
       ],
     });
-    expect(phasesByFloor(s, 2)).toEqual({ '213': 'live' });
+    expect(phasesByFloor(s, 2)).toEqual({ 'AI-LAB': 'live' });
     expect(phasesByFloor(s, 1)).toEqual({ '101': 'ending' });
   });
 });
@@ -74,45 +75,55 @@ describe('phasesByFloor', () => {
 describe('floorBusyCounts', () => {
   it('counts live and ending rooms per floor plus the total', () => {
     const rooms = [
-      roomState({ roomCode: '101', floor: 1, phase: 'live' }),
-      roomState({ roomCode: '110', floor: 1, phase: 'ending' }),
-      roomState({ roomCode: '213', floor: 2, phase: 'live' }),
-      roomState({ roomCode: '214', floor: 2, phase: 'soon' }),
-      roomState({ roomCode: '215', floor: 2, phase: 'free' }),
+      roomState({ roomCode: '100', floor: 1, phase: 'live' }),
+      roomState({ roomCode: '101', floor: 1, phase: 'ending' }),
+      roomState({ roomCode: 'CR', floor: 1, phase: 'free' }),
+      roomState({ roomCode: '200', floor: 2, phase: 'live' }),
+      roomState({ roomCode: '224', floor: 2, phase: 'ending' }),
+      roomState({ roomCode: '226', floor: 2, phase: 'live' }),
+      roomState({ roomCode: '223', floor: 2, phase: 'soon' }),
+      roomState({ roomCode: '226A', floor: 2, phase: 'free' }),
     ];
-    expect(floorBusyCounts(rooms, [1, 2, 3, 4])).toEqual([3, 2, 1, 0, 0]);
+    // the building has exactly two floors now
+    expect(floorBusyCounts(rooms, [1, 2])).toEqual([5, 2, 3]);
   });
 });
 
 describe('highlight', () => {
-  const dbs = session({ sessionId: 'now-1', groups: ['ПО2308', 'ПО2309'], roomCode: '213' });
-  const pm = session({
+  const history = session({
+    sessionId: 'now-1',
+    groups: ['Группа 1', 'Группа 2', 'Группа 3'],
+    roomCode: '100',
+    floor: 1,
+  });
+  const programming = session({
     sessionId: 'next-1',
-    groups: ['ПО2308'],
-    roomCode: '205',
-    courseCode: 'PM200',
-    courseTitle: 'Project Management',
+    groups: ['Группа 1'],
+    roomCode: '226',
+    floor: 2,
+    courseCode: 'IP1302',
+    courseTitle: 'Введение в программирование',
     phase: 'upcoming',
     startAt: '2026-09-08T07:00:00Z',
     endAt: '2026-09-08T07:50:00Z',
   });
-  const other = session({ sessionId: 'next-2', groups: ['ИС2301'], roomCode: '303' });
-  const s = snapshot({ now: [dbs], next: [pm, other] });
+  const other = session({ sessionId: 'next-2', groups: ['Группа 18'], roomCode: '219', floor: 2 });
+  const s = snapshot({ now: [history], next: [programming, other] });
 
   it('finds the rooms a group is in now and next', () => {
-    const badges = highlightedRooms(s, { kind: 'group', id: 'ПО2308' }, TZ);
-    expect(Object.keys(badges).sort()).toEqual(['205', '213']);
-    expect(badges['213']).toMatchObject({ kind: 'now', label: 'NOW' });
-    expect(badges['213']?.sub).toBe('CS201 Databases · until 11:50');
-    expect(badges['205']).toMatchObject({ kind: 'next', label: 'NEXT 12:00' });
+    const badges = highlightedRooms(s, { kind: 'group', id: 'Группа 1' }, TZ);
+    expect(Object.keys(badges).sort()).toEqual(['100', '226']);
+    expect(badges['100']).toMatchObject({ kind: 'now', label: 'NOW', floor: 1 });
+    expect(badges['100']?.sub).toBe('HK1105 История Казахстана · until 11:50');
+    expect(badges['226']).toMatchObject({ kind: 'next', label: 'NEXT 12:00', floor: 2 });
   });
 
   it('matches teachers by id, rooms by code and courses by code', () => {
-    expect(Object.keys(highlightedRooms(s, { kind: 'teacher', id: dbs.teacher.id }, TZ))).toContain(
-      '213',
-    );
-    expect(Object.keys(highlightedRooms(s, { kind: 'room', id: '205' }, TZ))).toEqual(['205']);
-    expect(Object.keys(highlightedRooms(s, { kind: 'course', id: 'PM200' }, TZ))).toEqual(['205']);
+    expect(
+      Object.keys(highlightedRooms(s, { kind: 'teacher', id: history.teacher.id }, TZ)),
+    ).toContain('100');
+    expect(Object.keys(highlightedRooms(s, { kind: 'room', id: '226' }, TZ))).toEqual(['226']);
+    expect(Object.keys(highlightedRooms(s, { kind: 'course', id: 'IP1302' }, TZ))).toEqual(['226']);
   });
 
   it('returns nothing without a highlight', () => {
@@ -120,9 +131,9 @@ describe('highlight', () => {
   });
 
   it('filters the board to the same sessions', () => {
-    expect(filterSessions(s.next, { kind: 'group', id: 'ПО2308' }).map((x) => x.sessionId)).toEqual([
-      'next-1',
-    ]);
+    expect(filterSessions(s.next, { kind: 'group', id: 'Группа 1' }).map((x) => x.sessionId)).toEqual(
+      ['next-1'],
+    );
     expect(filterSessions(s.next, null)).toBe(s.next);
   });
 });

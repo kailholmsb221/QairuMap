@@ -1,7 +1,16 @@
 # CampusLive — status
 
-**All ten phases (0–9) are complete.** The stack builds, seeds, runs and is
+**All ten phases (0–9) are complete, and the project has since been rebuilt
+around the university's real building.** The stack builds, seeds, runs and is
 covered end to end; `README.md` has the screenshots and the run instructions.
+
+> **Second pass — the real building.** The four invented floors were replaced by
+> the two real ones traced from the university's own floor plans, with the real
+> room numbering and names (`docs/BUILDING.md`), the five real first-year
+> subjects, placeholder `Преподаватель N` / `Группа N` rosters, and a full
+> **admin panel at `/admin`** for creating and changing classes live. The design
+> of the board, the map and every existing state is unchanged. The three
+> sections at the bottom of this file record that work.
 
 | # | Phase | State |
 |---|---|---|
@@ -239,15 +248,15 @@ _Added by the backend engineer. Everything below concerns `services/api` only;
 |---|---|
 | `pnpm lint` (eslint 9, next config) | clean |
 | `pnpm typecheck` (`tsc --noEmit`, strict) | clean |
-| `pnpm test` (vitest) | 67 tests / 7 files |
-| `pnpm build` | main route **230 kB** first-load JS (budget 300 kB), kiosk 215 kB |
-| `pnpm e2e` (Playwright, `CLOCK_MODE=fixed`) | 16 / 16 |
+| `pnpm test` (vitest) | 91 tests / 9 files |
+| `pnpm build` | main route **233 kB** first-load JS (budget 300 kB), `/admin` 147 kB, kiosk 220 kB |
+| `pnpm e2e` (Playwright, `CLOCK_MODE=fixed`) | 24 / 24 |
 
-Unit tests cover `deriveProgress` / `formatCountdown` / `formatHm`, `usePager`, `useAutoFitRows` (mocked `ResizeObserver`), the board selectors (pill kind, display room, room phase, floor busy counts, highlight matching), `boardStore` (SSE ignored while travelling), `SplitFlap` and `BoardRow` in all seven statuses.
+Unit tests cover `deriveProgress` / `formatCountdown` / `formatHm`, `usePager`, `useAutoFitRows` (mocked `ResizeObserver`), the board selectors (pill kind, display room, room phase, floor busy counts, highlight matching), `boardStore` (SSE ignored while travelling), `SplitFlap` and `BoardRow` in all seven statuses, plus the admin panel's grid placement (`buildGridIndex`, span coverage, parity sharing, natural ordering, `isoWeekday`), its conflict-message → field mapping, and the api-key hook (env vs. stored precedence, `localStorage` that throws, a remembered `401`).
 
-E2E covers: no page scroll at four viewports plus `/kiosk`; an admin cancel reaching an open board over SSE in well under a second with no navigation, then recovering when the override is deleted; the connection dot; searching `ПО2308` badging room 213, dimming the rest to 0.35 and filtering the board, then restoring on Escape; ⌘K; floor tab 2 → focus → room 213 → detail panel; room keyboard reachability and `aria-label`s; the board's table semantics; time travel entering and leaving simulated mode; the kiosk rotating floors and pages; and two masked visual snapshots (main, focus) whose baselines are committed.
+E2E covers: no page scroll at four viewports plus `/kiosk`, and no *horizontal* scroll on `/admin` at the same four; an admin cancel reaching an open board over SSE in well under a second with no navigation, then recovering when the override is deleted; the connection dot; searching `Группа 13` badging room `101`, dimming the rest to 0.35 and filtering the board, then restoring on Escape; ⌘K; floor tab 2 → focus → room `226` → detail panel; room keyboard reachability and `aria-label`s; the board's table semantics; time travel entering and leaving simulated mode; the kiosk rotating floors and pages; two masked visual snapshots (main, focus) re-recorded for the two-floor building; and the admin panel — the 13-room grid, a class created in a free cell showing up in the grid *and* on the board of another tab with no reload and then disappearing when deleted, a `400` printed against the field that caused it, a rejected key reported instead of failing silently, the rename of a placeholder teacher, the honest `409` on deleting a group that is still enrolled, and the way in from the ticker.
 
-`pnpm --filter web shots` regenerates the nine documentation screenshots in `docs/screenshots/`.
+`pnpm --filter web shots` regenerates the ten documentation screenshots in `docs/screenshots/` (`10-admin.png` is the new one).
 
 ## Deliberate deviations
 
@@ -255,10 +264,176 @@ E2E covers: no page scroll at four viewports plus `/kiosk`; an admin cancel reac
 2. **The e2e base URL is `localhost`, not `127.0.0.1`.** The API's CORS allow-list is an exact origin match and `infra/.env.example` ships `CORS_ORIGINS=http://localhost:3000`; using the loopback IP silently broke every client fetch. Noted in `playwright.config.ts`.
 3. **The realtime and search e2e scenarios pin the board with a filter first.** The board legitimately paginates every 8 s, so a row for one specific room is not reliably on screen. Filtering is the user-facing way to hold it there and is itself part of the assertion. Row counts after a filter are polled rather than read once, because leaving rows stay mounted for their 300 ms exit animation.
 4. **The after-hours screenshot scrubs the day slider with the keyboard** (`role="slider"` + `ArrowRight`) instead of a synthetic pointer drag — the drag was flaky at the track's far edge and the keyboard path is a real a11y affordance that deserves the coverage.
-5. **No Lighthouse run.** This sandbox has no Chrome-with-devtools-protocol budget for it; the underlying targets are met by construction (SSR first paint, 230 kB JS, `aria-label`s on every interactive element, ≥ 4.5:1 status contrast, motion limited to `transform`/`opacity`), but the score itself is unverified.
+5. **No Lighthouse run.** This sandbox has no Chrome-with-devtools-protocol budget for it; the underlying targets are met by construction (SSR first paint, 233 kB JS, `aria-label`s on every interactive element, ≥ 4.5:1 status contrast, motion limited to `transform`/`opacity`), but the score itself is unverified.
 6. **More `ending` (orange) rooms than the design's hero.** At the demo instant 10:47 most seeded classes are in their last five minutes, which is exactly what the engine should say; the design's mock hand-picked a livelier mix. The map and board are both correct — the difference is data, not styling.
+7. **Admin writes go through `/admin-api/*` on the app's own origin.** The Go service's CORS allow-list is `GET, POST, DELETE, OPTIONS`, so a browser `PATCH` — how the panel edits a lesson and renames a placeholder — never gets past the preflight. `apps/web/app/admin-api/[...path]/route.ts` forwards the caller's `X-Api-Key` unchanged and injects nothing, so it grants no privileges of its own; an unauthenticated request still comes back as the API's own `401`. The path is `/admin-api/*` rather than `/api/*` because `infra/Caddyfile` routes `/api/*` straight to the service. The clean fix is one line in the service's CORS methods, after which this route can go.
+8. **`playwright.config.ts`'s `webServer` now runs `pnpm exec next start`.** `pnpm run start -- --port` forwarded the `--` to `next start`, which read it as a project directory and refused to boot; the suite only ever passed because a server was already listening.
 
 ## Notes
 
 - `turbo.json` now carries `@campuslive/map-data#build` and `@campuslive/contracts#build` overrides so their artifacts are cached rather than warned about.
 - `.github/workflows/ci.yml`: the Phase-0 "detect sources" guards are gone, and the `e2e` job now builds and starts `cmd/api` (with `CORS_ORIGINS` and the fixed clock) and waits on `/readyz` before Playwright runs.
+
+---
+
+# Frontend — the real building and the admin panel
+
+_Added after the building model changed from four invented floors to the user's two
+real ones and the backend grew a full admin API. `apps/web/**` only, plus the
+regenerated `docs/screenshots/` and the two README image references that name them._
+
+## The building
+
+The map and the board already read `mapSpec.floors`, so the floor tabs, the plates,
+the focus view and the kiosk adapted on their own. Three things did not:
+
+- `components/map/RoomShape.tsx` keyed the dashed atrium-gallery detail off
+  `room.code === 'ATRIUM'`; the floor-2 void is now `VOID-2`.
+- **The exploded stack's z was hard-coded for four plates.** `projector()` placed
+  floor *i* at `(i − 1.5)·118 px` and `Scene` translated the real DOM plates by the
+  same expression, which centres four plates on z = 0 and pushes two of them below
+  it. Both now call `plateZ(i, floorCount)` = `(i − (n−1)/2)·118 px`, which is the
+  same value for four plates and the right one for two. The gap itself is untouched.
+- **The fit was width-bound with two plates and clipped the `F2 · 7 busy` labels.**
+  With four thin plates the stack was height-bound and the labels had room by
+  accident. `fitExploded` now takes an explicit `reserveRight` (132 px, the widest
+  label) off the available width and centres the stack in what is left. Margins,
+  angles, perspective and plate gap are unchanged — this is the fit maths the brief
+  allowed, not a design change.
+- `test/fixtures.ts`, `features/board/selectors.test.ts`, `BoardRow.test.tsx` and
+  `SplitFlap.test.tsx` were rewritten against the real world: floors `[1, 2]`, the
+  Assembly Hall's `100 · HK1105` as the default row, the seeded move `226A → 101`,
+  and `Преподаватель N` / `Группа N`.
+
+The header subtitle ("Главный учебный корпус · Блок A") is still accurate and was
+left alone. Nothing else on the board, map, kiosk or any existing state changed.
+
+## `/admin`
+
+One screen, `100dvh`, no page scroll; panels inside it scroll, which is what a
+working tool needs. It is built from the same tokens, the same metric variables and
+the same mono/UI type as the board — `Eyebrow`, `Segmented`, `Toggle` and the pills
+in `components/admin/ui.tsx` are the board's own vocabulary, and the header reuses
+`LogoMark`, `LiveClock`, `ConnectionDot`, `LangSwitch` and `ThemeToggle` beside an
+`АДМИН` badge and a link back to the board. The page holds its own `EventSource`
+(`useRealtime`), so an edit made anywhere else lands here too.
+
+- **Расписание** — the weekly grid: 10 slot rows × the 13 schedulable rooms, with a
+  weekday selector, a parity selector (все / нечётные / чётные), a room filter, a
+  "только занятые" toggle and the count line (`85 пар · вторник · все недели`).
+  Each cell shows course code, teacher and groups in the board's compact mono,
+  tinted by lesson type (lecture teal, lab violet, practice amber); a two-slot
+  lesson spans two rows, and an odd/even pair shares one cell. Clicking a free cell
+  opens the create dialog pre-filled with that room, slot and weekday; clicking a
+  class opens it for editing. `features/admin/grid.ts` holds the placement helper
+  (`buildGridIndex` / `lessonsAt` / `isCovered` / `cellSpan`) and is unit-tested.
+- **Изменения на дату** — the overrides of any date, each with an undo button, plus
+  a form that cancels, moves, delays or reassigns a session of that day. Same power
+  as the ticker's demo popover, laid out properly.
+- **Справочники** — three editable tables. Click a name, type, Enter → `PATCH`.
+  This is what turns `Преподаватель 1` into a real name; the board picks it up over
+  SSE. Add and delete are there too, and the `409` ("still teaches 43 lessons",
+  "is still enrolled in 23 lessons") is printed against the row, not swallowed.
+- **Объявления** — post a ticker line with a severity and a TTL, and see the lines
+  this tab has received on the stream.
+
+Errors from the server are attributed to the field that caused them
+(`lessonErrorField`) and printed there — a `409` on the room, the teacher or a group,
+a `400` on the room type or the span — never a toast that disappears.
+
+The key is `NEXT_PUBLIC_ADMIN_API_KEY` by default, with a pasted key persisted in
+`localStorage` (every access in `try`/`catch`), so the page also works against a
+deployed API. A missing or rejected key is said out loud in the header and in the
+grid, with the API's own `401` message.
+
+`messages/{ru,kk,en}.json` gained the `admin` namespace (nested under the existing
+demo-panel keys); Russian is the primary language and all three are complete.
+
+## The way in
+
+`components/panels/DemoAdminPanel.tsx` — the popover behind the ticker's grid button
+— gained an "Открыть админку →" link. The ticker's own layout and the header are
+untouched.
+
+## Known gaps
+
+- There is no `GET /announcements`, so "сейчас в бегущей строке" can only list what
+  this tab has seen on the stream. The panel says so rather than pretending.
+- The grid's room-header sub-line prints the raw `RoomType` (`LAB`, `LECTURE`,
+  `SEMINAR`) in every locale, like the board's `LIVE` / `NEXT` tokens.
+- `extra` overrides are creatable through the API but not through the panel's
+  override form; the four targeted kinds are.
+
+---
+
+# Backend — the real building and the admin API
+
+## Done
+
+**The building**
+
+- `internal/seed` rewritten for `docs/BUILDING.md`: building `A` (two floors),
+  all **51 spaces** with their Kazakh/Russian names and the uuids
+  `building-a.json` carries, **13 schedulable** rooms, the **five** real
+  first-year subjects (`AIF1303`, `FC1301`, `HK1105`, `ICT1103`, `IP1302`),
+  **12** placeholder teachers `Преподаватель 1…12` and **24** groups
+  `Группа 1…24`, ten 08:00–17:50 slots, `Осенний семестр 2026`
+  (2026-08-24 → 12-20, week 1 odd, so 8 Sep 2026 is week 3 · odd).
+- A dense weekday schedule — **432 lessons**, ~63 % of the room-slots Mon–Fri —
+  built room by room from a catalogue that pins what each room may teach (the AI
+  lab only teaches AI; the seven laboratories only hold labs; multi-group
+  lectures only go in the four lecture halls). No group and no teacher is ever
+  double-booked.
+- The demo instant `CLOCK_FIXED_AT=2026-09-08T10:47:00+05:00` is hand-placed:
+  **10 of the 13** rooms busy, three two-slot lectures `live`, six one-slot
+  lessons `ending`, `204` `delayed +15`, and in `NEXT` the cancelled `223` lab
+  and the `226A → 101` move.
+- `buildings.name` is the neutral **"Главный учебный корпус"** — the floor plans
+  do not name the institution, so the name is one constant
+  (`seed.BuildingName`, plus `BUILDING_NAME` in `svg2map.ts`) to change rather
+  than a guess baked into the data.
+
+**The admin API** — everything under `X-Api-Key`, every write pokes
+`board.Invalidate` so an open board sees it over SSE in ~20 ms:
+
+| | |
+|---|---|
+| Reference data (public) | `GET /buildings/{code}/rooms`, `/slots`, `GET /teachers`, `/groups`, `/courses`, `/semesters` |
+| Recurring schedule | `GET|POST /admin/lessons`, `PATCH|DELETE /admin/lessons/{id}` |
+| Roster | `POST|PATCH|DELETE /admin/teachers|groups|courses` |
+| One-off changes | `GET|POST /admin/overrides`, `DELETE /admin/overrides/{id}`, `POST /admin/announcements` |
+
+`POST`/`PATCH /admin/lessons` validates the whole placement and answers **409**
+with a readable message when the room, the teacher or any group is already
+booked in that weekday + slot + parity (honouring `slotSpan` and treating
+odd/even as non-colliding), and **400** when the room is not schedulable or its
+type does not suit the lesson type. Deleting a teacher, group or course that is
+still referenced is a **409**, not a silent cascade. `migrations/0002_admin.sql`
+adds the indexes those checks need; `0001` is untouched.
+
+## Quality gates (all green)
+
+| Gate | Result |
+|---|---|
+| `go build` · `go vet` · `golangci-lint run` | clean, **0 issues** |
+| `go test -race -cover ./...` | green — `engine` **98.0 %**, `clock` 100 %, `realtime` 94.4 % |
+| Contract tests (`TEST_DATABASE_URL`) | green — `httpapi` **61.4 %**, every response validated against `openapi.yaml` |
+| `go run ./cmd/seed --reset` | 51 rooms · 12 teachers · 24 groups · 5 courses · **432 lessons** · 40 overrides · 3 announcements |
+| `/board` at the demo instant | `roomsBusy 10 / 13`, NOW 10, NEXT 15, week 3 · odd |
+| SSE after `POST /admin/lessons` | new snapshot at **t + 20 ms** (budget 1 s) |
+
+New contract tests cover the reference endpoints, the whole lesson lifecycle
+(create → list → clash → patch → delete → 404), the room/type validation, the
+placeholder renames reaching the board, the 409 on a teacher who still teaches,
+`401` on every admin verb, and an SSE trace proving a new class lands on an open
+board within a second.
+
+## Deliberate deviations
+
+1. **`engine` is untouched.** The admin API only writes `lessons` /
+   `session_overrides` rows and pokes `invalidate`; phases, conflicts and
+   `nextTransitionAt` are still computed by the same pure package.
+2. **CORS now allows `PATCH`** (`middleware.go`) — a browser cannot preflight a
+   `PATCH` otherwise, and every edit in the panel is one.
+3. **`210`, `211`, `212`, `215` carry neutral "Кабинет NNN" names** — they are on
+   the plan but not in the university's room list.

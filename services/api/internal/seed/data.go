@@ -1,6 +1,8 @@
 package seed
 
 import (
+	"strconv"
+
 	"github.com/google/uuid"
 
 	"github.com/kailholmes/campuslive/services/api/internal/domain"
@@ -14,18 +16,94 @@ func ID(kind, key string) uuid.UUID {
 	return uuid.NewSHA1(uuid.NameSpaceDNS, []byte("campuslive:"+kind+":"+key))
 }
 
-// Departments used by teachers and courses.
+// BuildingName is what `buildings.name` holds — deliberately neutral, because
+// the floor plans do not name the institution. Change this one constant (and
+// BUILDING_NAME in packages/map-data/scripts/svg2map.ts) to the university's
+// own name.
+const BuildingName = "Главный учебный корпус"
+
+// SemesterName is the current term.
+const SemesterName = "Осенний семестр 2026"
+
+// TeacherCount and GroupCount are the placeholder rosters. Both are renamed
+// from the admin panel; nothing in the code depends on their text
+// (docs/BUILDING.md § Schedule).
 const (
-	deptCS   = "Dept. of Computer Science"
-	deptSE   = "School of Software Engineering"
-	deptCB   = "Dept. of Cybersecurity"
-	deptDS   = "Dept. of Data Science & AI"
-	deptMA   = "Dept. of Mathematics"
-	deptPH   = "Dept. of Physics & Electronics"
-	deptIT   = "Dept. of IT Management"
-	deptLang = "Dept. of Languages"
-	deptHum  = "Dept. of Humanities"
+	TeacherCount = 12
+	GroupCount   = 24
 )
+
+// roomNames maps a room code to the Kazakh/Russian display name of
+// docs/BUILDING.md. `rooms.name` holds this; the English name stays in the map
+// data as `data-name`, so both are available.
+//
+// It is only ever read by key — never ranged over — so generation stays
+// deterministic.
+var roomNames = map[string]string{
+	// ---- floor 1 ----
+	"100":      "Мәжіліс залы",
+	"101":      "Оқу зертханасы",
+	"102":      "Кітапхана",
+	"102A":     "Кітапхана — оқу залы",
+	"103":      "Медициналық пункт",
+	"CR":       "Конференц-бөлме (CR)",
+	"CINEMA":   "Кинозал",
+	"WC-1":     "Дәретхана",
+	"WC-2":     "Дәретхана",
+	"CAFE":     "Асхана",
+	"LOBBY":    "Фойе",
+	"ATRIUM-N": "Солтүстік атриум",
+	"TECH-N1":  "Техникалық бөлме",
+	"TECH-N2":  "Техникалық бөлме",
+	"TECH-N3":  "Техникалық бөлме",
+	"TECH-S1":  "Техникалық бөлме",
+	"CORE-N1":  "Баспалдақ және лифт",
+	"CORE-S1":  "Баспалдақ",
+
+	// ---- floor 2 ----
+	"200":     "Дәріс аудиториясы",
+	"201":     "Кеңес өткізу залы",
+	"202":     "Деканат",
+	"203":     "Академиялық қызмет департаменті",
+	"204":     "Оқу зертханасы",
+	"205":     "Қойма бөлмесі",
+	"206":     "Ректордың қабылдау бөлмесі",
+	"207":     "Ректор",
+	"208":     "Бірінші проректор",
+	"209":     "Проректорлардың қабылдау бөлмесі",
+	"210":     "Кабинет 210",
+	"211":     "Кабинет 211",
+	"212":     "Кабинет 212",
+	"213":     "Ректор кеңесшісі",
+	"214":     "Бухгалтерлік есеп департаменті",
+	"215":     "Кабинет 215",
+	"AI-LAB":  "AI зертханасы",
+	"217":     "Маркетинг және қоғаммен байланыс департаменті",
+	"218":     "Білім беру бағдарламалары мектебі",
+	"219":     "Дәріс аудиториясы",
+	"220":     "Қызметтік бөлме",
+	"221":     "Тіркеу кеңсесі",
+	"222":     "Компьютерлік сынып",
+	"223":     "Оқу зертханасы",
+	"224":     "Дәріс аудиториясы",
+	"225":     "Қызметтік бөлме",
+	"226":     "Оқу зертханасы",
+	"226A":    "Оқу зертханасы",
+	"WC-N2":   "Дәретхана",
+	"WC-S2":   "Дәретхана",
+	"VOID-2":  "Атриум ойығы",
+	"CORE-N2": "Баспалдақ және лифт",
+	"CORE-S2": "Баспалдақ",
+}
+
+// RoomName is the Kazakh/Russian display name of a room code, falling back to
+// the English name carried by the map data.
+func RoomName(code, fallback string) string {
+	if name, ok := roomNames[code]; ok {
+		return name
+	}
+	return fallback
+}
 
 type teacherSeed struct {
 	Short string
@@ -33,51 +111,15 @@ type teacherSeed struct {
 	Dept  string
 }
 
-// teachers are 40 invented Kazakh and Russian staff members. The first
-// fourteen are the ones the design's screens name, so the demo board reads
-// exactly like docs/design/src/states.mjs.
-var teachers = []teacherSeed{
-	{"Akhmetov D.", "Akhmetov Daniyar Bolatuly", deptCS},
-	{"Nurgaliyeva A.", "Nurgaliyeva Aigerim Serikovna", deptSE},
-	{"Smirnov P.", "Smirnov Pavel Andreevich", deptMA},
-	{"Kim V.", "Kim Vladimir Sergeevich", deptSE},
-	{"Sadykova G.", "Sadykova Gulnara Maratovna", deptDS},
-	{"Bekzhanov T.", "Bekzhanov Timur Askarovich", deptCB},
-	{"Ivanova E.", "Ivanova Elena Viktorovna", deptPH},
-	{"Orazbayev N.", "Orazbayev Nurlan Kairatuly", deptCS},
-	{"Kairatova M.", "Kairatova Madina Nurlanovna", deptSE},
-	{"Petrova O.", "Petrova Olga Dmitrievna", deptDS},
-	{"Zhumabekov S.", "Zhumabekov Sanzhar Erlanuly", deptIT},
-	{"Alimov R.", "Alimov Ruslan Maratovich", deptCS},
-	{"Abenov Y.", "Abenov Yerlan Talgatuly", deptIT},
-	{"Tleuberdiyev A.", "Tleuberdiyev Azamat Nurbolatuly", deptCS},
-
-	{"Amangeldy K.", "Amangeldy Karina Bekzatovna", deptSE},
-	{"Baiseitova Z.", "Baiseitova Zarina Muratovna", deptDS},
-	{"Volkov I.", "Volkov Igor Nikolaevich", deptPH},
-	{"Dosmukhamedov B.", "Dosmukhamedov Bauyrzhan Serikuly", deptCB},
-	{"Yesimova A.", "Yesimova Aliya Kanatovna", deptMA},
-	{"Zhaksylykov M.", "Zhaksylykov Miras Talgatuly", deptCS},
-	{"Ismailova D.", "Ismailova Dinara Rustemovna", deptLang},
-	{"Kuznetsov S.", "Kuznetsov Sergey Olegovich", deptCS},
-	{"Lebedeva N.", "Lebedeva Natalia Igorevna", deptHum},
-	{"Mukhtarov Zh.", "Mukhtarov Zhandos Aidarovich", deptIT},
-	{"Nikolaev A.", "Nikolaev Anton Pavlovich", deptSE},
-	{"Omarova S.", "Omarova Saltanat Bakytovna", deptLang},
-	{"Pak A.", "Pak Andrey Vladimirovich", deptPH},
-	{"Rakhimova L.", "Rakhimova Laura Serikovna", deptDS},
-	{"Serikbay N.", "Serikbay Nurzhan Askaruly", deptCB},
-	{"Tulegenova A.", "Tulegenova Aizhan Muratovna", deptMA},
-	{"Utegenov D.", "Utegenov Daulet Zhandosuly", deptCS},
-	{"Fedorov K.", "Fedorov Konstantin Yurievich", deptMA},
-	{"Khasenova B.", "Khasenova Botagoz Nurlanovna", deptHum},
-	{"Tsoi E.", "Tsoi Evgeny Alexandrovich", deptSE},
-	{"Chernova V.", "Chernova Vera Mikhailovna", deptLang},
-	{"Shaimerdenov A.", "Shaimerdenov Arman Bakytuly", deptIT},
-	{"Erbolatova G.", "Erbolatova Gauhar Erbolatovna", deptDS},
-	{"Yusupova R.", "Yusupova Rimma Ilhamovna", deptHum},
-	{"Yakovlev D.", "Yakovlev Dmitry Sergeevich", deptCB},
-	{"Beisenov T.", "Beisenov Talgat Muratuly", deptPH},
+// teacherSeeds are the twelve placeholders `Преподаватель 1` … `Преподаватель 12`.
+// The admin panel renames them (PATCH /api/v1/admin/teachers/{id}).
+func teacherSeeds() []teacherSeed {
+	out := make([]teacherSeed, 0, TeacherCount)
+	for i := 1; i <= TeacherCount; i++ {
+		name := "Преподаватель " + strconv.Itoa(i)
+		out = append(out, teacherSeed{Short: name, Full: name})
+	}
+	return out
 }
 
 type groupSeed struct {
@@ -86,38 +128,13 @@ type groupSeed struct {
 	Year    int
 }
 
-// groups are the 30 student groups of the demo faculty.
-var groups = []groupSeed{
-	{"ПО2301", "Software Engineering", 3},
-	{"ПО2302", "Software Engineering", 3},
-	{"ПО2303", "Software Engineering", 3},
-	{"ПО2304", "Software Engineering", 3},
-	{"ПО2305", "Software Engineering", 3},
-	{"ПО2306", "Software Engineering", 3},
-	{"ПО2307", "Software Engineering", 3},
-	{"ПО2308", "Software Engineering", 3},
-	{"ПО2309", "Software Engineering", 3},
-	{"ПО2310", "Software Engineering", 3},
-	{"ПО2401", "Software Engineering", 2},
-	{"ПО2402", "Software Engineering", 2},
-	{"ПО2403", "Software Engineering", 2},
-	{"ПО2404", "Software Engineering", 2},
-	{"ИС2301", "Information Systems", 3},
-	{"ИС2302", "Information Systems", 3},
-	{"ИС2303", "Information Systems", 3},
-	{"ИС2304", "Information Systems", 3},
-	{"ВТ2401", "Computer Engineering", 2},
-	{"ВТ2402", "Computer Engineering", 2},
-	{"ВТ2403", "Computer Engineering", 2},
-	{"ВТ2404", "Computer Engineering", 2},
-	{"БДА2401", "Big Data & Analytics", 2},
-	{"БДА2402", "Big Data & Analytics", 2},
-	{"БДА2403", "Big Data & Analytics", 2},
-	{"БДА2404", "Big Data & Analytics", 2},
-	{"КБ2401", "Cybersecurity", 2},
-	{"КБ2402", "Cybersecurity", 2},
-	{"КБ2403", "Cybersecurity", 2},
-	{"КБ2404", "Cybersecurity", 2},
+// groupSeeds are the twenty-four placeholders `Группа 1` … `Группа 24`.
+func groupSeeds() []groupSeed {
+	out := make([]groupSeed, 0, GroupCount)
+	for i := 1; i <= GroupCount; i++ {
+		out = append(out, groupSeed{Code: "Группа " + strconv.Itoa(i), Year: 1})
+	}
+	return out
 }
 
 type courseSeed struct {
@@ -126,92 +143,67 @@ type courseSeed struct {
 	Dept  string
 }
 
-// courses are the 50 subjects. Codes match the design's screens wherever it
-// names one.
+// courses are the five real first-year subjects of docs/BUILDING.md § Schedule.
+// There are no others in the whole university.
 var courses = []courseSeed{
-	{"CS110", "Programming I", deptCS},
-	{"CS201", "Databases", deptCS},
-	{"CS210", "Data Structures", deptCS},
-	{"CS220", "Computer Architecture", deptCS},
-	{"CS250", "Algorithms", deptCS},
-	{"CS305", "Operating Systems", deptCS},
-	{"CS310", "Compilers", deptCS},
-	{"CS330", "Computer Networks", deptCS},
-	{"CS405", "Distributed Systems", deptCS},
-	{"CS420", "Cloud Computing", deptCS},
-	{"CS440", "Blockchain Systems", deptCS},
-	{"SE210", "Software Design", deptSE},
-	{"SE240", "Software Testing", deptSE},
-	{"SE320", "Mobile Development", deptSE},
-	{"SE330", "Web Development", deptSE},
-	{"SE410", "Software Architecture", deptSE},
-	{"AI210", "Introduction to AI", deptDS},
-	{"AI320", "Machine Learning", deptDS},
-	{"ML410", "Deep Learning", deptDS},
-	{"DS215", "Statistics", deptDS},
-	{"DS330", "Data Mining", deptDS},
-	{"DS410", "Big Data Systems", deptDS},
-	{"CB240", "Network Security", deptCB},
-	{"CB310", "Cryptography", deptCB},
-	{"CB350", "Ethical Hacking", deptCB},
-	{"CB420", "Digital Forensics", deptCB},
-	{"MA101", "Discrete Math", deptMA},
-	{"MA201", "Linear Algebra", deptMA},
-	{"MA210", "Calculus", deptMA},
-	{"MA310", "Probability Theory", deptMA},
-	{"MA320", "Numerical Methods", deptMA},
-	{"PH101", "Physics", deptPH},
-	{"PH210", "Electronics", deptPH},
-	{"IOT310", "IoT Systems", deptPH},
-	{"RB210", "Robotics", deptPH},
-	{"RB320", "Computer Vision", deptDS},
-	{"ST300", "Startup Studio", deptIT},
-	{"PM200", "Project Management", deptIT},
-	{"PM310", "Product Management", deptIT},
-	{"EC210", "Economics of IT", deptIT},
-	{"LW220", "IT Law", deptIT},
-	{"UX240", "UX Design", deptSE},
-	{"EN101", "English for IT", deptLang},
-	{"EN205", "Academic Writing", deptLang},
-	{"KZ100", "Kazakh Language", deptLang},
-	{"KZ210", "Kazakh for Professionals", deptLang},
-	{"RU110", "Russian Language", deptLang},
-	{"HI101", "History of Kazakhstan", deptHum},
-	{"PL200", "Philosophy", deptHum},
-	{"OL100", "Open Lecture", deptIT},
+	{Code: "AIF1303", Title: "Основы искусственного интеллекта"},
+	{Code: "FC1301", Title: "Основы математического анализа"},
+	{Code: "HK1105", Title: "История Казахстана"},
+	{Code: "ICT1103", Title: "Информационно-коммуникационные технологии"},
+	{Code: "IP1302", Title: "Введение в программирование"},
 }
 
-// themedLabs pins the course catalogue of the five named laboratories
-// (ARCHITECTURE §13): each one only ever teaches its own subject.
-var themedLabs = map[string][]string{
-	"210": {"IOT310"},         // Samsung Innovation Lab
-	"211": {"ST300"},          // Astana Hub Startup Lab
-	"112": {"RB210"},          // Skywalkers Robotics Lab
-	"313": {"CB240", "CB310"}, // Cyber Range Lab
-	"413": {"ML410", "AI320"}, // AI & GPU Lab
+// courseStaff gives every course two or three of the twelve teachers, so a
+// lesson can always name someone who really teaches the subject. Every teacher
+// appears exactly once, which is what keeps the peak slots fillable: ten
+// simultaneous lessons need ten distinct teachers.
+var courseStaff = []struct {
+	Course   string
+	Teachers []string
+}{
+	{"AIF1303", []string{"Преподаватель 1", "Преподаватель 2", "Преподаватель 3"}},
+	{"FC1301", []string{"Преподаватель 4", "Преподаватель 5", "Преподаватель 6"}},
+	{"HK1105", []string{"Преподаватель 7", "Преподаватель 8"}},
+	{"ICT1103", []string{"Преподаватель 9", "Преподаватель 10"}},
+	{"IP1302", []string{"Преподаватель 11", "Преподаватель 12"}},
 }
 
-// programCourses biases each group's programme towards its own subjects; the
-// general education courses below are open to everyone.
-var programCourses = map[string][]string{
-	"Software Engineering": {"CS110", "CS201", "CS210", "CS250", "CS305", "CS310", "CS330", "CS405", "CS420", "CS440", "SE210", "SE240", "SE320", "SE330", "SE410", "UX240", "PM200"},
-	"Information Systems":  {"CS201", "CS210", "CS250", "CS330", "CS420", "DS215", "DS330", "PM200", "PM310", "EC210", "LW220", "SE240"},
-	"Computer Engineering": {"CS220", "CS330", "PH101", "PH210", "IOT310", "RB210", "RB320", "CS110", "MA210"},
-	"Big Data & Analytics": {"DS215", "DS330", "DS410", "AI210", "AI320", "ML410", "MA310", "MA320", "CS201"},
-	"Cybersecurity":        {"CB240", "CB310", "CB350", "CB420", "CS330", "CS220", "MA101", "CS440"},
-}
+// roomCatalogue pins what each of the thirteen schedulable rooms may teach.
+// The lecture halls take anything; the laboratories only take the three
+// computer subjects; the two seminar rooms take the three that need a
+// blackboard rather than a machine.
+var roomCatalogue = []struct {
+	Room    string
+	Courses []string
+}{
+	// Lecture halls — docs/BUILDING.md: 100, 200, 219, 224.
+	{"100", []string{"HK1105", "FC1301", "ICT1103", "IP1302", "AIF1303"}},
+	{"200", []string{"FC1301", "HK1105", "AIF1303", "IP1302", "ICT1103"}},
+	{"219", []string{"ICT1103", "IP1302", "FC1301", "HK1105", "AIF1303"}},
+	{"224", []string{"IP1302", "AIF1303", "HK1105", "FC1301", "ICT1103"}},
 
-// generalCourses can be taught to any programme.
-var generalCourses = []string{"MA101", "MA201", "MA210", "EN101", "EN205", "KZ100", "KZ210", "RU110", "HI101", "PL200", "PH101"}
+	// Seminar rooms.
+	{"CR", []string{"FC1301", "HK1105", "IP1302"}},
+	{"201", []string{"HK1105", "FC1301", "ICT1103"}},
+
+	// Laboratories.
+	{"101", []string{"ICT1103", "IP1302", "AIF1303"}},
+	{"204", []string{"AIF1303", "IP1302", "ICT1103"}},
+	{"AI-LAB", []string{"AIF1303"}},
+	{"222", []string{"ICT1103", "IP1302"}},
+	{"223", []string{"IP1302", "ICT1103", "AIF1303"}},
+	{"226", []string{"IP1302", "AIF1303", "ICT1103"}},
+	{"226A", []string{"ICT1103", "AIF1303", "IP1302"}},
+}
 
 // timeSlots are the ten 50-minute lesson slots with 10-minute breaks,
-// 08:00–17:50 local (ARCHITECTURE §13).
+// 08:00–17:50 local.
 func timeSlots() []domain.TimeSlot {
 	out := make([]domain.TimeSlot, 0, 10)
 	for i := 1; i <= 10; i++ {
 		hour := 7 + i
 		out = append(out, domain.TimeSlot{
-			ID:       ID("slot", "A/"+itoa(i)),
+			ID:       ID("slot", "A/"+strconv.Itoa(i)),
 			Idx:      i,
 			StartsAt: domain.NewTimeOfDay(hour, 0),
 			EndsAt:   domain.NewTimeOfDay(hour, 50),
@@ -220,21 +212,8 @@ func timeSlots() []domain.TimeSlot {
 	return out
 }
 
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	var b []byte
-	for n > 0 {
-		b = append([]byte{byte('0' + n%10)}, b...)
-		n /= 10
-	}
-	return string(b)
-}
-
-// fixedLesson is a hand-placed lesson: the demo's hero rows, the themed-lab
-// classes and the weekly open lecture. They are laid down before the random
-// filler so the board always tells the story the design tells.
+// fixedLesson is a hand-placed lesson. They are laid down before the random
+// filler so the demo instant always tells the same story.
 type fixedLesson struct {
 	Key     string
 	Course  string
@@ -247,57 +226,81 @@ type fixedLesson struct {
 	Groups  []string
 }
 
-// heroLessons is the Tuesday of docs/design/src/states.mjs, plus the Thursday
-// open lecture in the Assembly Hall.
+// heroLessons build the fixed-clock demo moment, `CLOCK_FIXED_AT=
+// 2026-09-08T10:47:00+05:00` — Tuesday of teaching week 3, 13 minutes before
+// the end of slot 3.
+//
+// Ten of the thirteen schedulable rooms are busy at that instant: the three
+// two-slot lessons (100, 200, 226) and the delayed one (204) are `live`, the
+// six one-slot lessons (101, 219, 222, 224, AI-LAB, CR) are `ending`. Slot 4
+// then carries the cancellation and the move, both inside the 90-minute NEXT
+// horizon.
 var heroLessons = []fixedLesson{
-	{"hero-cs201", "CS201", "Akhmetov D.", "213", 2, 3, 2, domain.LessonLecture, []string{"ПО2308", "ПО2309"}},
-	{"hero-cs110", "CS110", "Nurgaliyeva A.", "101", 2, 3, 1, domain.LessonLecture, []string{"ПО2401", "ПО2402"}},
-	{"hero-ma101-305", "MA101", "Smirnov P.", "305", 2, 3, 1, domain.LessonPractice, []string{"ИС2301"}},
-	{"hero-se330", "SE330", "Kim V.", "216", 2, 3, 1, domain.LessonLab, []string{"ПО2310"}},
-	{"hero-ai320", "AI320", "Sadykova G.", "412", 2, 3, 1, domain.LessonLab, []string{"БДА2401"}},
-	{"hero-cb240", "CB240", "Bekzhanov T.", "313", 2, 3, 1, domain.LessonLab, []string{"КБ2401"}},
-	{"hero-ph101", "PH101", "Ivanova E.", "110", 2, 3, 2, domain.LessonLecture, []string{"ВТ2401", "ВТ2402"}},
-	{"hero-cs250", "CS250", "Orazbayev N.", "303", 2, 4, 1, domain.LessonPractice, []string{"ИС2301", "ИС2302"}},
-	{"hero-ma101-101", "MA101", "Smirnov P.", "101", 2, 4, 1, domain.LessonLecture, []string{"ПО2401", "ПО2402"}},
-	{"hero-se210", "SE210", "Kairatova M.", "216", 2, 4, 1, domain.LessonPractice, []string{"ПО2310"}},
-	{"hero-ds215", "DS215", "Petrova O.", "412", 2, 4, 1, domain.LessonPractice, []string{"БДА2401"}},
-	{"hero-pm200", "PM200", "Zhumabekov S.", "205", 2, 5, 1, domain.LessonPractice, []string{"ПО2308"}},
-	{"hero-cs305", "CS305", "Alimov R.", "213", 2, 5, 1, domain.LessonLecture, []string{"ИС2301"}},
-	{"hero-st300", "ST300", "Abenov Y.", "211", 2, 5, 1, domain.LessonLab, []string{"ПО2309"}},
-	{"hero-rb210", "RB210", "Alimov R.", "112", 2, 6, 1, domain.LessonLab, []string{"ВТ2402"}},
-	{"hero-cs405", "CS405", "Akhmetov D.", "213", 2, 7, 1, domain.LessonLecture, []string{"ПО2308"}},
-	{"hero-iot310", "IOT310", "Kim V.", "210", 2, 7, 1, domain.LessonLab, []string{"ВТ2401"}},
-	{"hero-cb310", "CB310", "Bekzhanov T.", "313", 2, 7, 1, domain.LessonLab, []string{"КБ2401", "КБ2402"}},
-	{"hero-ml410", "ML410", "Sadykova G.", "412", 2, 7, 1, domain.LessonLab, []string{"БДА2401"}},
-	{"hero-en205", "EN205", "Petrova O.", "219", 2, 7, 1, domain.LessonLab, []string{"ИС2302"}},
-	{"hero-se320", "SE320", "Kim V.", "213", 2, 9, 1, domain.LessonLecture, []string{"ПО2310"}},
+	// ---- slot 3, 10:00 — the NOW list ----
+	{"hero-100", "HK1105", "Преподаватель 7", "100", 2, 3, 2, domain.LessonLecture,
+		[]string{"Группа 1", "Группа 2", "Группа 3"}},
+	{"hero-200", "FC1301", "Преподаватель 4", "200", 2, 3, 2, domain.LessonLecture,
+		[]string{"Группа 4", "Группа 5"}},
+	{"hero-226", "IP1302", "Преподаватель 12", "226", 2, 3, 2, domain.LessonLab,
+		[]string{"Группа 12"}},
+	{"hero-219", "ICT1103", "Преподаватель 9", "219", 2, 3, 1, domain.LessonLecture,
+		[]string{"Группа 6", "Группа 7"}},
+	{"hero-224", "IP1302", "Преподаватель 11", "224", 2, 3, 1, domain.LessonLecture,
+		[]string{"Группа 8", "Группа 9"}},
+	{"hero-ai-lab", "AIF1303", "Преподаватель 1", "AI-LAB", 2, 3, 1, domain.LessonLab,
+		[]string{"Группа 10"}},
+	{"hero-222", "ICT1103", "Преподаватель 10", "222", 2, 3, 1, domain.LessonLab,
+		[]string{"Группа 11"}},
+	{"hero-101", "AIF1303", "Преподаватель 2", "101", 2, 3, 1, domain.LessonLab,
+		[]string{"Группа 13"}},
+	{"hero-cr", "FC1301", "Преподаватель 5", "CR", 2, 3, 1, domain.LessonPractice,
+		[]string{"Группа 14"}},
+	// Delayed by 15 minutes → 10:15–11:05, still `live` at 10:47.
+	{"hero-204-delayed", "AIF1303", "Преподаватель 3", "204", 2, 3, 1, domain.LessonLab,
+		[]string{"Группа 15"}},
 
-	// The weekly Open Lecture in the Assembly Hall (ARCHITECTURE §13).
-	{"open-lecture", "OL100", "Abenov Y.", "110", 4, 7, 2, domain.LessonLecture,
-		[]string{"ПО2308", "ПО2309", "ПО2310", "ИС2301"}},
+	// ---- slot 4, 11:00 — the NEXT list ----
+	{"hero-223-cancelled", "ICT1103", "Преподаватель 10", "223", 2, 4, 1, domain.LessonLab,
+		[]string{"Группа 16"}},
+	{"hero-226a-moved", "AIF1303", "Преподаватель 1", "226A", 2, 4, 1, domain.LessonLab,
+		[]string{"Группа 17"}},
 }
 
-// keepFree holds (weekday, room, slot) triples the random filler must leave
-// empty so the scripted demo overrides land cleanly: 313 must be free at 11:00
-// for the delayed CB240 to run into, and 414 must be free at 11:00 to receive
-// the moved DS215.
+const (
+	// heroDelayKey is delayed, heroCancelKey cancelled and heroMoveKey moved
+	// into heroMoveDestination on every Tuesday of the seeded fortnight.
+	heroDelayKey        = "hero-204-delayed"
+	heroCancelKey       = "hero-223-cancelled"
+	heroMoveKey         = "hero-226a-moved"
+	heroMoveDestination = "101"
+	heroDelayMinutes    = 15
+	heroDelayNote       = "Преподаватель задерживается на 15 минут"
+	heroCancelNote      = "Занятие отменено"
+	heroMoveNote        = "Аудитория 226A закрыта на техобслуживание"
+	genericCancelNote   = "Занятие отменено"
+	genericMoveNote     = "Смена аудитории"
+	genericDelayedNote  = "Занятие начнётся позже"
+)
+
+// keepFree holds (weekday, slot, room) cells the random filler must leave
+// empty. 101 receives the moved lesson at 11:00, and 204 stays free at 11:00
+// because the delayed lesson before it runs until 11:05.
 var keepFree = []struct {
 	Weekday int
-	Room    string
 	Slot    int
+	Room    string
 }{
-	{2, "313", 4},
-	{2, "414", 4},
+	{2, 4, "101"},
+	{2, 4, "204"},
 }
 
-// tickerAnnouncements are the standing ticker lines (docs/design/src/states.mjs
-// HERO_TICKER). The override-derived lines are generated by the client from the
-// board itself, so only the informational ones are stored.
+// tickerAnnouncements are the standing ticker lines, in Russian, for this
+// building.
 var tickerAnnouncements = []struct {
 	Text     string
 	Severity domain.Severity
 }{
-	{`Open Lecture · Assembly Hall "Aula" 110 · Thu 14:00 · guest speaker from Astana Hub`, domain.SeverityInfo},
-	{`Library & Reading Room 113 open until 22:00`, domain.SeverityInfo},
-	{`Building A is open 07:30–22:00 · main entrance W, Main Lobby`, domain.SeverityInfo},
+	{"Открытая лекция · Мәжіліс залы (100) · четверг, 14:00", domain.SeverityInfo},
+	{"Библиотека (102) и читальный зал (102A) работают до 20:00", domain.SeverityInfo},
+	{"Здание открыто 08:00–20:00 · главный вход с западной стороны, фойе", domain.SeverityInfo},
 }

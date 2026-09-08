@@ -21,13 +21,13 @@ describe('SplitFlap', () => {
   });
 
   it('does not flip on the first render', () => {
-    const { container } = render(<SplitFlap value="213" />);
+    const { container } = render(<SplitFlap value="226" />);
     expect(flipping(container).length).toBe(0);
   });
 
   it('flips only the cells whose character changed', () => {
-    const { container, rerender } = render(<SplitFlap value="213" />);
-    rerender(<SplitFlap value="214" />);
+    const { container, rerender } = render(<SplitFlap value="226" />);
+    rerender(<SplitFlap value="224" />);
     const flipped = flipping(container);
     expect(flipped.length).toBe(1);
     expect(flipped[0]?.textContent).toContain('4');

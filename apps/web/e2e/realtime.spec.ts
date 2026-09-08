@@ -15,16 +15,17 @@ test('an admin cancel reaches the open board over SSE, without a reload', async 
   await page.goto('/');
   await waitForApp(page);
 
-  const databases = await findSession(request, '213', 'CS201');
+  // the Assembly Hall runs HK1105 10:00–11:50 at the demo instant
+  const history = await findSession(request, '100', 'HK1105');
 
-  // pin the board to room 213 so the row cannot be paged away mid-assertion
-  await filterBoard(page, '213');
+  // pin the board to room 100 so the row cannot be paged away mid-assertion
+  await filterBoard(page, '100');
 
-  const row = page.locator('[data-testid="board"] [data-room="213"]').first();
+  const row = page.locator('[data-testid="board"] [data-room="100"]').first();
   await expect(row).toBeVisible();
   await expect(row).toHaveAttribute('data-status', 'live');
 
-  const room = page.locator('#f2-room-213');
+  const room = page.locator('#f1-room-100');
   await expect(room).toHaveAttribute('data-phase', 'live');
 
   let overrideId: string | null = null;
@@ -32,7 +33,7 @@ test('an admin cancel reaches the open board over SSE, without a reload', async 
     overrideId = await createOverride(request, {
       date: DEMO_DATE,
       kind: 'cancel',
-      sessionId: databases.sessionId,
+      sessionId: history.sessionId,
       note: 'e2e',
     });
 
@@ -42,7 +43,7 @@ test('an admin cancel reaches the open board over SSE, without a reload', async 
       .poll(
         async () =>
           page
-            .locator(`[data-testid="board"] [data-session="${databases.sessionId}"]`)
+            .locator(`[data-testid="board"] [data-session="${history.sessionId}"]`)
             .count(),
         { timeout: 2000, intervals: [100, 100, 100] },
       )

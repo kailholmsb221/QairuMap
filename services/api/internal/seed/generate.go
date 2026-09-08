@@ -1,4 +1,5 @@
-// Package seed builds the deterministic demo dataset (ARCHITECTURE §13).
+// Package seed builds the deterministic demo dataset for the real building
+// (docs/BUILDING.md).
 //
 // Everything here is reproducible: `math/rand` is driven from a fixed seed and
 // every loop walks an explicitly ordered slice — no map is ever ranged over
@@ -79,25 +80,30 @@ type Options struct {
 	Today domain.Date
 }
 
-// Fill ratios per slot: a real teaching day peaks late morning and empties out
-// after 16:00. The average is ≈ 0.68 of the 41 schedulable rooms.
+// slotFill is how many of the thirteen schedulable rooms should be busy in each
+// slot: a real teaching day warms up, peaks late morning, dips over lunch,
+// picks up again after 14:00 and empties out towards 18:00.
 var slotFill = map[int]float64{
-	1: 0.62, 2: 0.74, 3: 0.88, 4: 0.88, 5: 0.82,
-	6: 0.78, 7: 0.85, 8: 0.78, 9: 0.70, 10: 0.58,
+	1: 0.40, 2: 0.62, 3: 0.77, 4: 0.77, 5: 0.62,
+	6: 0.50, 7: 0.70, 8: 0.62, 9: 0.42, 10: 0.25,
 }
 
-// slotOrder fills the busiest slots first, so that when the 30 student groups
+// slotOrder fills the busiest slots first, so that when the 24 student groups
 // run out it is the quiet edges of the day that thin out, not the peak.
-var slotOrder = []int{3, 4, 7, 5, 8, 2, 6, 9, 1, 10}
+var slotOrder = []int{3, 4, 7, 2, 5, 8, 6, 1, 9, 10}
 
 const (
-	// A demo board only looks alive when the building is full, so a group may
-	// sit in every one of the ten slots (12 allows for the two-slot lectures
-	// that overhang a slot boundary). The teacher cap is the real one: it stops
-	// the department-affinity rule from handing one lecturer the whole day.
-	maxGroupSlotsPerDay   = 12
-	maxTeacherSlotsPerDay = 10
-	parityChance          = 0.10
+	// Every group gets roughly four pairs a day; the cap leaves head-room for
+	// the two-slot lessons that overhang a slot boundary.
+	maxGroupSlotsPerDay = 6
+	// Twelve teachers cover thirteen rooms, so the cap has to be generous or
+	// the peak slots cannot be filled at all.
+	maxTeacherSlotsPerDay = 8
+	// How often a cell carries an odd/even pair instead of a weekly lesson.
+	parityChance = 0.30
+	// How often a lesson runs over two consecutive slots.
+	lectureSpanChance = 0.20
+	labSpanChance     = 0.12
 )
 
 // Generate builds the whole dataset.
@@ -134,7 +140,7 @@ func (ds *Dataset) buildStatics(spec *mapspec.Spec) error {
 	ds.Building = domain.Building{
 		ID:       ID("building", spec.Building),
 		Code:     spec.Building,
-		Name:     spec.Name,
+		Name:     BuildingName,
 		Timezone: spec.Timezone,
 		Location: loc,
 		Floors:   len(spec.Floors),
@@ -146,7 +152,9 @@ func (ds *Dataset) buildStatics(spec *mapspec.Spec) error {
 
 		for _, r := range f.Rooms {
 			// The room id comes from building-a.json so the web app, the map
-			// and the database agree before the database even exists.
+			// and the database agree before the database even exists. The name
+			// is the Kazakh/Russian one of docs/BUILDING.md; the English one
+			// stays in the map data.
 			id, err := uuid.Parse(r.ID)
 			if err != nil {
 				return fmt.Errorf("seed: room %s has an invalid id %q: %w", r.Code, r.ID, err)
@@ -154,7 +162,7 @@ func (ds *Dataset) buildStatics(spec *mapspec.Spec) error {
 			ds.Rooms = append(ds.Rooms, domain.Room{
 				ID:          id,
 				Code:        r.Code,
-				Name:        r.Name,
+				Name:        RoomName(r.Code, r.Name),
 				Type:        domain.RoomType(r.Type),
 				Wing:        domain.Wing(r.Wing),
 				Schedulable: r.Schedulable,
@@ -170,12 +178,12 @@ func (ds *Dataset) buildStatics(spec *mapspec.Spec) error {
 		}
 	}
 
-	for _, t := range teachers {
+	for _, t := range teacherSeeds() {
 		ds.Teachers = append(ds.Teachers, domain.Teacher{
 			ID: ID("teacher", t.Short), FullName: t.Full, ShortName: t.Short, Department: t.Dept,
 		})
 	}
-	for _, g := range groups {
+	for _, g := range groupSeeds() {
 		ds.Groups = append(ds.Groups, domain.Group{
 			ID: ID("group", g.Code), Code: g.Code, Program: g.Program, CourseYear: g.Year,
 		})
@@ -188,7 +196,7 @@ func (ds *Dataset) buildStatics(spec *mapspec.Spec) error {
 	ds.Slots = timeSlots()
 	ds.Semester = domain.Semester{
 		ID:          ID("semester", "fall-2026"),
-		Name:        "Fall 2026",
+		Name:        SemesterName,
 		StartsOn:    domain.NewDate(2026, time.August, 24),
 		EndsOn:      domain.NewDate(2026, time.December, 20),
 		Week1Parity: domain.ParityOdd,
@@ -208,14 +216,20 @@ type generator struct {
 	groupByCode   map[string]domain.Group
 	slotByIdx     map[int]domain.TimeSlot
 
+	// staffOf and catalogueOf are read by key only, never ranged over.
+	staffOf     map[string][]string
+	catalogueOf map[string][]string
+
 	schedulable []domain.Room
 
-	// occupancy[weekday][slot][key] holds the parities already placed there.
+	// occupancy[weekday|slot|key] holds the parities already placed there.
 	roomBusy    map[string][]domain.Parity
 	groupBusy   map[string][]domain.Parity
 	teacherBusy map[string][]domain.Parity
 
-	groupLoad   map[string]int // groupCode|weekday → slots used that day
+	// load is counted per parity bucket, so an odd/even pair in one cell does
+	// not look like two lessons in the same week.
+	groupLoad   map[string]int
 	teacherLoad map[string]int
 
 	blocked map[string]bool // weekday|slot|roomCode kept free for the demo overrides
@@ -232,6 +246,8 @@ func newGenerator(ds *Dataset, rng *rand.Rand) *generator {
 		courseByCode:  make(map[string]domain.Course, len(ds.Courses)),
 		groupByCode:   make(map[string]domain.Group, len(ds.Groups)),
 		slotByIdx:     make(map[int]domain.TimeSlot, len(ds.Slots)),
+		staffOf:       make(map[string][]string, len(courseStaff)),
+		catalogueOf:   make(map[string][]string, len(roomCatalogue)),
 		roomBusy:      map[string][]domain.Parity{},
 		groupBusy:     map[string][]domain.Parity{},
 		teacherBusy:   map[string][]domain.Parity{},
@@ -257,6 +273,12 @@ func newGenerator(ds *Dataset, rng *rand.Rand) *generator {
 	for _, s := range ds.Slots {
 		g.slotByIdx[s.Idx] = s
 	}
+	for _, cs := range courseStaff {
+		g.staffOf[cs.Course] = cs.Teachers
+	}
+	for _, rc := range roomCatalogue {
+		g.catalogueOf[rc.Room] = rc.Courses
+	}
 	for _, k := range keepFree {
 		g.blocked[cell(k.Weekday, k.Slot, k.Room)] = true
 	}
@@ -267,7 +289,18 @@ func cell(weekday, slot int, key string) string {
 	return fmt.Sprintf("%d|%d|%s", weekday, slot, key)
 }
 
-func dayKey(weekday int, key string) string { return fmt.Sprintf("%d|%s", weekday, key) }
+func loadKey(weekday int, key string, p domain.Parity) string {
+	return fmt.Sprintf("%d|%s|%s", weekday, key, p)
+}
+
+// buckets lists the parity buckets a lesson consumes: an every-week lesson
+// takes both, an odd-week one only the odd bucket.
+func buckets(p domain.Parity) []domain.Parity {
+	if p == domain.ParityAll {
+		return []domain.Parity{domain.ParityOdd, domain.ParityEven}
+	}
+	return []domain.Parity{p}
+}
 
 // compatible reports whether two parities can share the same room and slot:
 // only odd and even alternate, everything else collides.
@@ -278,6 +311,17 @@ func compatible(a, b domain.Parity) bool {
 func free(existing []domain.Parity, p domain.Parity) bool {
 	for _, e := range existing {
 		if !compatible(e, p) {
+			return false
+		}
+	}
+	return true
+}
+
+// underLoad reports whether a key is still below its daily cap in every parity
+// bucket the lesson would consume.
+func underLoad(load map[string]int, weekday int, key string, p domain.Parity, cap int) bool {
+	for _, b := range buckets(p) {
+		if load[loadKey(weekday, key, b)] >= cap {
 			return false
 		}
 	}
@@ -315,10 +359,14 @@ func (g *generator) occupy(weekday, slot, span int, roomCode, teacher string, gr
 		s := slot + i
 		g.roomBusy[cell(weekday, s, roomCode)] = append(g.roomBusy[cell(weekday, s, roomCode)], parity)
 		g.teacherBusy[cell(weekday, s, teacher)] = append(g.teacherBusy[cell(weekday, s, teacher)], parity)
-		g.teacherLoad[dayKey(weekday, teacher)]++
+		for _, b := range buckets(parity) {
+			g.teacherLoad[loadKey(weekday, teacher, b)]++
+		}
 		for _, gc := range groupCodes {
 			g.groupBusy[cell(weekday, s, gc)] = append(g.groupBusy[cell(weekday, s, gc)], parity)
-			g.groupLoad[dayKey(weekday, gc)]++
+			for _, b := range buckets(parity) {
+				g.groupLoad[loadKey(weekday, gc, b)]++
+			}
 		}
 	}
 }
@@ -372,21 +420,21 @@ func (g *generator) add(key string, weekday, slot, span int, courseCode, teacher
 	return true
 }
 
-// placeFixed lays down the design's hero rows before anything random, so the
-// demo board always tells the same story.
+// placeFixed lays down the demo instant's rows before anything random, so the
+// board at CLOCK_FIXED_AT always tells the same story.
 func (g *generator) placeFixed() {
 	for _, f := range heroLessons {
 		if !g.add(f.Key, f.Weekday, f.Slot, f.Span, f.Course, f.Teacher, f.Room, f.Groups, f.Type, domain.ParityAll) {
-			// A hero lesson that cannot be placed is a bug in this file, not a
+			// A hero lesson that cannot be placed is a bug in data.go, not a
 			// runtime condition; surface it loudly rather than silently
-			// producing a demo that does not match the design.
+			// producing a demo that does not match docs/BUILDING.md.
 			panic(fmt.Sprintf("seed: hero lesson %q could not be placed", f.Key))
 		}
 	}
 }
 
-// fill adds the random filler until each slot reaches its target occupancy or
-// the student groups run out.
+// fill adds the filler until each slot reaches its target occupancy or the
+// student groups run out.
 func (g *generator) fill() {
 	n := 0
 	for weekday := 1; weekday <= 5; weekday++ {
@@ -434,36 +482,36 @@ func (g *generator) fill() {
 
 func (g *generator) placeOne(n *int, weekday, slot int, room domain.Room, parity domain.Parity) bool {
 	typ := lessonTypeFor(room.Type)
+
+	// Only a lecture hall ever gathers several groups (docs/BUILDING.md).
 	wantGroups := 1
-	if room.Type == domain.RoomLecture && g.rng.Float64() < 0.6 {
-		wantGroups = 2 + g.rng.Intn(2) // a real lecture gathers 2–3 groups
-	}
-
-	groupCodes := g.pickGroups(weekday, slot, wantGroups, parity)
-	if len(groupCodes) == 0 {
-		return false
-	}
-	// The rule from ARCHITECTURE §13: a lecture for several groups only ever
-	// happens in a lecture hall.
-	if len(groupCodes) > 1 && room.Type != domain.RoomLecture {
-		typ = lessonTypeFor(room.Type)
-		if typ == domain.LessonLecture {
-			typ = domain.LessonPractice
-		}
-	}
-
-	courseCode := g.pickCourse(room, groupCodes)
-	if courseCode == "" {
-		return false
-	}
-	teacherName := g.pickTeacher(weekday, slot, courseCode, parity)
-	if teacherName == "" {
-		return false
+	if room.Type == domain.RoomLecture {
+		wantGroups = 2 + g.rng.Intn(2) // 2–3 groups
 	}
 
 	span := 1
-	if room.Type == domain.RoomLecture && slot < 10 && g.rng.Float64() < 0.15 {
-		span = 2
+	if _, ok := g.slotByIdx[slot+1]; ok {
+		chance := 0.0
+		switch room.Type {
+		case domain.RoomLecture:
+			chance = lectureSpanChance
+		case domain.RoomLab:
+			chance = labSpanChance
+		default:
+			chance = 0
+		}
+		if g.rng.Float64() < chance {
+			span = 2
+		}
+	}
+
+	groupCodes := g.pickGroups(weekday, slot, span, wantGroups, parity)
+	if len(groupCodes) == 0 {
+		return false
+	}
+	courseCode, teacherName := g.pickCourseAndTeacher(weekday, slot, span, room, parity)
+	if courseCode == "" {
+		return false
 	}
 
 	*n++
@@ -496,137 +544,97 @@ func (g *generator) shuffledRooms() []domain.Room {
 	return out
 }
 
-// pickGroups takes up to want groups that are free in this slot and still under
-// their daily load cap.
-func (g *generator) pickGroups(weekday, slot, want int, parity domain.Parity) []string {
+// pickGroups takes up to want groups that are free in every spanned slot and
+// still under their daily cap, preferring the ones with the lightest day so the
+// four-pairs-a-day load spreads evenly over the 24 groups.
+func (g *generator) pickGroups(weekday, slot, span, want int, parity domain.Parity) []string {
 	order := make([]int, len(g.ds.Groups))
 	for i := range order {
 		order[i] = i
 	}
 	g.rng.Shuffle(len(order), func(i, j int) { order[i], order[j] = order[j], order[i] })
 
-	var out []string
-	var program string
+	type candidate struct {
+		code string
+		load int
+	}
+	var pool []candidate
 	for _, i := range order {
 		gr := g.ds.Groups[i]
-		if !free(g.groupBusy[cell(weekday, slot, gr.Code)], parity) {
+		if !g.freeOver(g.groupBusy, weekday, slot, span, gr.Code, parity) {
 			continue
 		}
-		if g.groupLoad[dayKey(weekday, gr.Code)] >= maxGroupSlotsPerDay {
+		if !underLoad(g.groupLoad, weekday, gr.Code, parity, maxGroupSlotsPerDay) {
 			continue
 		}
-		// Groups attending together belong to the same programme.
-		if program == "" {
-			program = gr.Program
-		} else if gr.Program != program {
-			continue
-		}
-		out = append(out, gr.Code)
+		pool = append(pool, candidate{code: gr.Code, load: g.groupLoad[loadKey(weekday, gr.Code, buckets(parity)[0])]})
+	}
+	sort.SliceStable(pool, func(i, j int) bool { return pool[i].load < pool[j].load })
+
+	out := make([]string, 0, want)
+	for _, c := range pool {
+		out = append(out, c.code)
 		if len(out) == want {
 			break
 		}
 	}
+	sort.Strings(out)
 	return out
 }
 
-// pickCourse honours the themed laboratories first, then the programme of the
-// attending groups, then the general education catalogue.
-func (g *generator) pickCourse(room domain.Room, groupCodes []string) string {
-	if themed, ok := themedLabs[room.Code]; ok {
-		return themed[g.rng.Intn(len(themed))]
+// pickCourseAndTeacher walks the room's own catalogue in a deterministic random
+// order and returns the first (course, teacher) pair that is free.
+func (g *generator) pickCourseAndTeacher(weekday, slot, span int, room domain.Room, parity domain.Parity) (string, string) {
+	catalogue := append([]string(nil), g.catalogueOf[room.Code]...)
+	if len(catalogue) == 0 {
+		return "", ""
 	}
-	program := ""
-	if len(groupCodes) > 0 {
-		program = g.groupByCode[groupCodes[0]].Program
-	}
+	g.rng.Shuffle(len(catalogue), func(i, j int) { catalogue[i], catalogue[j] = catalogue[j], catalogue[i] })
 
-	var pool []string
-	if p, ok := programCourses[program]; ok && g.rng.Float64() < 0.75 {
-		pool = p
-	} else {
-		pool = generalCourses
-	}
-	// A laboratory never hosts a language or history class.
-	if room.Type == domain.RoomLab {
-		filtered := pool[:0:0]
-		for _, code := range pool {
-			if !isGeneral(code) {
-				filtered = append(filtered, code)
+	for _, courseCode := range catalogue {
+		staff := append([]string(nil), g.staffOf[courseCode]...)
+		g.rng.Shuffle(len(staff), func(i, j int) { staff[i], staff[j] = staff[j], staff[i] })
+		for _, name := range staff {
+			if !g.freeOver(g.teacherBusy, weekday, slot, span, name, parity) {
+				continue
 			}
+			if !underLoad(g.teacherLoad, weekday, name, parity, maxTeacherSlotsPerDay) {
+				continue
+			}
+			return courseCode, name
 		}
-		if len(filtered) > 0 {
-			pool = filtered
-		} else if p, ok := programCourses[program]; ok {
-			pool = p
-		}
 	}
-	if len(pool) == 0 {
-		return ""
-	}
-	code := pool[g.rng.Intn(len(pool))]
-	if code == "OL100" {
-		return ""
-	}
-	return code
+	return "", ""
 }
 
-func isGeneral(code string) bool {
-	for _, c := range generalCourses {
-		if c == code {
-			return true
+// freeOver reports whether a key is free in every slot the lesson spans.
+func (g *generator) freeOver(busy map[string][]domain.Parity, weekday, slot, span int, key string, parity domain.Parity) bool {
+	for i := 0; i < span; i++ {
+		if !free(busy[cell(weekday, slot+i, key)], parity) {
+			return false
 		}
 	}
-	return false
-}
-
-// pickTeacher prefers a member of the course's own department and falls back to
-// anyone free.
-func (g *generator) pickTeacher(weekday, slot int, courseCode string, parity domain.Parity) string {
-	dept := g.courseByCode[courseCode].Department
-
-	order := make([]int, len(g.ds.Teachers))
-	for i := range order {
-		order[i] = i
-	}
-	g.rng.Shuffle(len(order), func(i, j int) { order[i], order[j] = order[j], order[i] })
-
-	fallback := ""
-	for _, i := range order {
-		t := g.ds.Teachers[i]
-		if !free(g.teacherBusy[cell(weekday, slot, t.ShortName)], parity) {
-			continue
-		}
-		if g.teacherLoad[dayKey(weekday, t.ShortName)] >= maxTeacherSlotsPerDay {
-			continue
-		}
-		if t.Department == dept {
-			return t.ShortName
-		}
-		if fallback == "" {
-			fallback = t.ShortName
-		}
-	}
-	return fallback
+	return true
 }
 
 // ------------------------------------------------------------- overrides --
 
 // buildOverrides writes the scripted per-day changes: two cancellations, one
 // move and one delay for every weekday of the semester week containing the seed
-// run date and of the week after it (ARCHITECTURE §13). Tuesdays additionally
-// carry the exact three the design shows.
+// run date and of the week after it. Tuesdays carry the three the fixed-clock
+// demo moment needs.
 func (ds *Dataset) buildOverrides(g *generator, today domain.Date, rng *rand.Rand) error {
 	lessonByKey := map[string]*Lesson{}
 	for i := range ds.Lessons {
 		lessonByKey[ds.Lessons[i].ID.String()] = &ds.Lessons[i]
 	}
 
-	heroCancel := ID("lesson", "hero-se210")
-	heroMove := ID("lesson", "hero-ds215")
-	heroDelay := ID("lesson", "hero-cb240")
-	room414, ok := g.roomByCode["414"]
+	heroCancel := ID("lesson", heroCancelKey)
+	heroMove := ID("lesson", heroMoveKey)
+	heroDelay := ID("lesson", heroDelayKey)
+	destination, ok := g.roomByCode[heroMoveDestination]
 	if !ok {
-		return fmt.Errorf("seed: room 414 is missing from the map data")
+		return fmt.Errorf("seed: room %s is missing from the map data", heroMoveDestination)
 	}
 
 	weekNumber, _ := engine.WeekInfo(ds.Semester, today)
@@ -672,29 +680,29 @@ func (ds *Dataset) buildOverrides(g *generator, today domain.Date, rng *rand.Ran
 
 			cancels := 0
 			if weekday == 2 {
-				// The three the design shows, on every Tuesday of the window.
+				// The three the fixed-clock demo moment shows, on every
+				// Tuesday of the window.
 				if l, ok := lessonByKey[heroCancel.String()]; ok {
-					add(domain.OverrideCancel, l, func(o *Override) { o.Note = "Lecturer unavailable" })
+					add(domain.OverrideCancel, l, func(o *Override) { o.Note = heroCancelNote })
 					cancels++
 				}
 				if l, ok := lessonByKey[heroMove.String()]; ok {
 					add(domain.OverrideMove, l, func(o *Override) {
-						id := room414.ID
+						id := destination.ID
 						o.NewRoomID = &id
-						o.Note = "Computer Lab 4 is being re-imaged"
+						o.Note = heroMoveNote
 					})
 				}
 				if l, ok := lessonByKey[heroDelay.String()]; ok {
 					add(domain.OverrideDelay, l, func(o *Override) {
-						d := 15
+						d := heroDelayMinutes
 						o.DelayMinutes = &d
-						o.Note = "Starts 15 minutes late"
+						o.Note = heroDelayNote
 					})
 				}
 			}
 
-			pick := func(skipKinds ...domain.OverrideKind) *Lesson {
-				_ = skipKinds
+			pick := func() *Lesson {
 				for attempt := 0; attempt < 40; attempt++ {
 					l := candidates[rng.Intn(len(candidates))]
 					if used[l.ID] {
@@ -710,25 +718,36 @@ func (ds *Dataset) buildOverrides(g *generator, today domain.Date, rng *rand.Ran
 				if l == nil {
 					break
 				}
-				add(domain.OverrideCancel, l, func(o *Override) { o.Note = "Cancelled" })
+				add(domain.OverrideCancel, l, func(o *Override) { o.Note = genericCancelNote })
 				cancels++
 			}
 
 			if weekday != 2 {
-				if l := pick(); l != nil {
-					if dest := g.freeRoomFor(l, weekday, parity); dest != nil {
-						add(domain.OverrideMove, l, func(o *Override) {
-							id := dest.ID
-							o.NewRoomID = &id
-							o.Note = "Room changed"
-						})
+				// A move needs a free room of the same kind; try a handful of
+				// candidates so every weekday really carries one.
+				for attempt := 0; attempt < 8; attempt++ {
+					l := pick()
+					if l == nil {
+						break
 					}
+					dest := g.freeRoomFor(l, weekday, parity)
+					if dest == nil {
+						// Mark it used so the next attempt picks another one.
+						used[l.ID] = true
+						continue
+					}
+					add(domain.OverrideMove, l, func(o *Override) {
+						id := dest.ID
+						o.NewRoomID = &id
+						o.Note = genericMoveNote
+					})
+					break
 				}
 				if l := pick(); l != nil {
 					add(domain.OverrideDelay, l, func(o *Override) {
 						d := []int{10, 15, 20}[rng.Intn(3)]
 						o.DelayMinutes = &d
-						o.Note = "Starts late"
+						o.Note = genericDelayedNote
 					})
 				}
 			}
@@ -745,7 +764,7 @@ func (ds *Dataset) buildOverrides(g *generator, today domain.Date, rng *rand.Ran
 }
 
 // freeRoomFor finds a schedulable room of the same kind that is empty in this
-// lesson's slot, so a move never manufactures a conflict.
+// lesson's slots, so a move never manufactures a conflict.
 func (g *generator) freeRoomFor(l *Lesson, weekday int, parity domain.Parity) *domain.Room {
 	origin := g.roomByCode[l.RoomCode]
 	for _, r := range g.schedulable {

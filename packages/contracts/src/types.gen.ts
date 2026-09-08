@@ -138,6 +138,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/buildings/{code}/rooms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Rooms of a building
+         * @description Every space of the building as a flat list — the attribute half of `getBuildingMap`
+         *     without any geometry. The admin panel uses it to populate the room picker and to
+         *     decide which rooms may host a lesson (`schedulable`, `type`).
+         *
+         */
+        get: operations["listBuildingRooms"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/buildings/{code}/slots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lesson time slots of a building
+         * @description The building's numbered lesson slots with their **local** wall-clock times
+         *     (`HH:MM`, resolved through `Building.timezone`). `idx` is the 1-based index the
+         *     admin API takes as `slotIdx`.
+         *
+         */
+        get: operations["listBuildingSlots"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/rooms/{code}/day": {
         parameters: {
             query?: never;
@@ -218,6 +264,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/teachers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every teacher
+         * @description The whole teacher table, ordered by `shortName`. Reference data for the admin
+         *     panel's pickers; `search` remains the right endpoint for type-ahead.
+         *
+         */
+        get: operations["listTeachers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every student group */
+        get: operations["listGroups"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/courses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every course */
+        get: operations["listCourses"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/semesters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every semester
+         * @description The terms lessons can be attached to, ordered by `startsOn`. The admin panel
+         *     defaults new lessons to the semester containing today.
+         *
+         */
+        get: operations["listSemesters"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events": {
         parameters: {
             query?: never;
@@ -283,7 +407,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List the overrides of one date
+         * @description Every point change stored for a local building date, oldest first. The admin panel
+         *     lists them so a change can be undone with `deleteOverride`.
+         *
+         */
+        get: operations["listOverrides"];
         put?: never;
         /**
          * Create a session override
@@ -344,6 +474,200 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/lessons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List recurring lessons
+         * @description The recurring schedule itself — the `lessons` templates the engine materialises into
+         *     sessions every day. This is what the admin panel edits when a timetabler "puts a pair
+         *     on the grid".
+         *
+         *     Every filter is optional and they combine with AND. Without `semesterId` the semester
+         *     containing the server's current local date is used.
+         *
+         */
+        get: operations["listLessons"];
+        put?: never;
+        /**
+         * Add a recurring lesson
+         * @description Places a lesson on the weekly grid and rebuilds the board immediately, so every open
+         *     screen shows it within a second.
+         *
+         *     **Validation.** `400` when the room is not `schedulable`, when the room type does not
+         *     suit the lesson type (a `lab` only in a `lab` room, a `lecture` for two or more groups
+         *     only in a `lecture` room), when the slot span would run past the last slot, or when a
+         *     referenced group does not exist. `409` when the room, the teacher or any of the groups
+         *     is already taken on that weekday in any of the slots the lesson spans, for a week
+         *     parity that overlaps (`all` collides with everything; `odd` and `even` do not collide).
+         *
+         */
+        post: operations["createLesson"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/lessons/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a recurring lesson
+         * @description Deletes the template and every override attached to it, then rebuilds the board.
+         *
+         */
+        delete: operations["deleteLesson"];
+        options?: never;
+        head?: never;
+        /**
+         * Edit a recurring lesson
+         * @description Every field is optional; omitted fields keep their stored value. The same validation
+         *     and the same conflict checks as `createLesson` run against the merged lesson, ignoring
+         *     the lesson itself. The board is rebuilt immediately.
+         *
+         */
+        patch: operations["updateLesson"];
+        trace?: never;
+    };
+    "/api/v1/admin/teachers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a teacher */
+        post: operations["createTeacher"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/teachers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a teacher
+         * @description `409` while the teacher still teaches a lesson or is named by an override.
+         */
+        delete: operations["deleteTeacher"];
+        options?: never;
+        head?: never;
+        /**
+         * Rename a teacher
+         * @description The seeded staff are placeholders (`Преподаватель 1` …); this is how they get their
+         *     real names. The name is on every board row, so the snapshot is rebuilt immediately.
+         *
+         */
+        patch: operations["updateTeacher"];
+        trace?: never;
+    };
+    "/api/v1/admin/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a student group */
+        post: operations["createGroup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/groups/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a student group
+         * @description `409` while the group is still enrolled in a lesson.
+         */
+        delete: operations["deleteGroup"];
+        options?: never;
+        head?: never;
+        /**
+         * Rename a student group
+         * @description The seeded groups are placeholders (`Группа 1` …). Their code is shown on every board
+         *     row, so the snapshot is rebuilt immediately.
+         *
+         */
+        patch: operations["updateGroup"];
+        trace?: never;
+    };
+    "/api/v1/admin/courses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a course */
+        post: operations["createCourse"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/courses/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a course
+         * @description `409` while the course is still taught by a lesson or an override.
+         */
+        delete: operations["deleteCourse"];
+        options?: never;
+        head?: never;
+        /**
+         * Edit a course
+         * @description The title is on every board row, so the snapshot is rebuilt immediately.
+         */
+        patch: operations["updateCourse"];
         trace?: never;
     };
 }
@@ -429,6 +753,14 @@ export interface components {
          * @enum {string}
          */
         WeekParity: "odd" | "even";
+        /**
+         * @description Which teaching weeks a recurring lesson runs in: `all` every week, `odd` only in
+         *     odd-numbered weeks, `even` only in even ones. Two lessons in the same room, slot and
+         *     weekday collide unless one is `odd` and the other `even`.
+         *
+         * @enum {string}
+         */
+        LessonParity: "all" | "odd" | "even";
         /** @description One building of the campus. */
         Building: {
             /**
@@ -809,9 +1141,12 @@ export interface components {
         SearchCourse: {
             /** Format: uuid */
             id: string;
-            /** @example CS201 */
+            /** @example AIF1303 */
             code: string;
+            /** @example Основы искусственного интеллекта */
             title: string;
+            /** @description Owning department. Absent when the course carries none. */
+            department?: string;
         };
         /** @description Search hits grouped by kind. Every array is present, possibly empty. */
         SearchResult: {
@@ -819,6 +1154,83 @@ export interface components {
             groups: components["schemas"]["SearchGroup"][];
             rooms: components["schemas"]["SearchRoom"][];
             courses: components["schemas"]["SearchCourse"][];
+        };
+        /** @description One space of a building without its geometry — what the admin panel needs to pick a
+         *     room. `schedulable` and `type` are the two fields the lesson validator checks.
+         *      */
+        RoomInfo: {
+            /** Format: uuid */
+            id: string;
+            /** @example AI-LAB */
+            code: string;
+            /** @example AI зертханасы */
+            name: string;
+            /**
+             * Format: int32
+             * @example 2
+             */
+            floor: number;
+            type: components["schemas"]["RoomType"];
+            wing: components["schemas"]["Wing"];
+            /**
+             * Format: int32
+             * @description Seats. Absent for spaces where capacity is meaningless.
+             */
+            capacity?: number;
+            schedulable: boolean;
+        };
+        /** @description Every room of a building, ordered by floor then code. */
+        RoomList: {
+            rooms: components["schemas"]["RoomInfo"][];
+        };
+        /** @description One numbered lesson slot. `startsAt` / `endsAt` are **local** wall-clock times
+         *     `HH:MM`, not instants — the engine resolves them through `Building.timezone`.
+         *      */
+        SlotInfo: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: int32
+             * @description 1-based index within the building; this is the admin API's `slotIdx`.
+             * @example 3
+             */
+            idx: number;
+            /** @example 10:00 */
+            startsAt: string;
+            /** @example 10:50 */
+            endsAt: string;
+        };
+        /** @description The building's lesson slots, ordered by `idx`. */
+        SlotList: {
+            slots: components["schemas"]["SlotInfo"][];
+        };
+        /** @description Every teacher, ordered by `shortName`. */
+        TeacherList: {
+            teachers: components["schemas"]["TeacherRef"][];
+        };
+        /** @description Every student group, ordered by `code`. */
+        GroupList: {
+            groups: components["schemas"]["SearchGroup"][];
+        };
+        /** @description Every course, ordered by `code`. */
+        CourseList: {
+            courses: components["schemas"]["SearchCourse"][];
+        };
+        /** @description One teaching term. Week numbers and parity are counted from `startsOn`. */
+        Semester: {
+            /** Format: uuid */
+            id: string;
+            /** @example Осенний семестр 2026 */
+            name: string;
+            /** @example 2026-08-24 */
+            startsOn: string;
+            /** @example 2026-12-20 */
+            endsOn: string;
+            week1Parity: components["schemas"]["WeekParity"];
+        };
+        /** @description Every semester, ordered by `startsOn`. */
+        SemesterList: {
+            semesters: components["schemas"]["Semester"][];
         };
         /** @description Server "now" and how it is produced. */
         TimeInfo: {
@@ -978,6 +1390,176 @@ export interface components {
             /** Format: date-time */
             endsAt: string;
         };
+        /** @description The overrides stored for one local date, oldest first. */
+        OverrideList: {
+            overrides: components["schemas"]["Override"][];
+        };
+        /** @description A student group attending a lesson. */
+        GroupRef: {
+            /** Format: uuid */
+            id: string;
+            /** @example Группа 7 */
+            code: string;
+        };
+        /** @description One entry of the recurring weekly grid — a row of the `lessons` table joined with the
+         *     names the admin panel shows. The engine materialises it into a `SessionView` for every
+         *     matching date; nothing here is date-specific.
+         *
+         *     `startsAt` / `endsAt` are the **local** wall-clock bounds of the slot range the lesson
+         *     occupies: the start of slot `slotIdx` and the end of slot `slotIdx + slotSpan - 1`.
+         *      */
+        Lesson: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            semesterId: string;
+            /** Format: uuid */
+            courseId: string;
+            /** @example AIF1303 */
+            courseCode: string;
+            /** @example Основы искусственного интеллекта */
+            courseTitle: string;
+            /** Format: uuid */
+            teacherId: string;
+            /**
+             * @description The teacher's `shortName`.
+             * @example Преподаватель 4
+             */
+            teacherName: string;
+            /** Format: uuid */
+            roomId: string;
+            /** @example AI-LAB */
+            roomCode: string;
+            /** Format: uuid */
+            slotId: string;
+            /**
+             * Format: int32
+             * @example 3
+             */
+            slotIdx: number;
+            /** @example 10:00 */
+            startsAt: string;
+            /** @example 10:50 */
+            endsAt: string;
+            /**
+             * Format: int32
+             * @description ISO weekday, 1 = Monday … 7 = Sunday.
+             * @example 2
+             */
+            weekday: number;
+            parity: components["schemas"]["LessonParity"];
+            type: components["schemas"]["LessonType"];
+            /**
+             * Format: int32
+             * @description How many consecutive slots the lesson occupies.
+             * @example 1
+             */
+            slotSpan: number;
+            /** @description Student groups attending, ordered by code. */
+            groups: components["schemas"]["GroupRef"][];
+        };
+        /** @description Matching lessons, ordered by weekday, slot index and room code. */
+        LessonList: {
+            lessons: components["schemas"]["Lesson"][];
+        };
+        /** @description A new entry on the weekly grid. `semesterId` defaults to the semester containing the
+         *     server's current local date; `slotSpan` defaults to 1.
+         *      */
+        LessonCreate: {
+            /** Format: uuid */
+            semesterId?: string;
+            /** Format: uuid */
+            courseId: string;
+            /** Format: uuid */
+            teacherId: string;
+            /** @example AI-LAB */
+            roomCode: string;
+            /**
+             * Format: int32
+             * @example 3
+             */
+            slotIdx: number;
+            /**
+             * Format: int32
+             * @example 2
+             */
+            weekday: number;
+            parity: components["schemas"]["LessonParity"];
+            type: components["schemas"]["LessonType"];
+            /**
+             * Format: int32
+             * @default 1
+             */
+            slotSpan: number;
+            /**
+             * @description Codes of the attending student groups. At least one.
+             * @example [
+             *       "Группа 7",
+             *       "Группа 8"
+             *     ]
+             */
+            groupCodes: string[];
+        };
+        /** @description A partial edit of one lesson. Every field is optional; the omitted ones keep their
+         *     stored value, and the conflict checks run against the merged result.
+         *      */
+        LessonUpdate: {
+            /** Format: uuid */
+            semesterId?: string;
+            /** Format: uuid */
+            courseId?: string;
+            /** Format: uuid */
+            teacherId?: string;
+            roomCode?: string;
+            /** Format: int32 */
+            slotIdx?: number;
+            /** Format: int32 */
+            weekday?: number;
+            parity?: components["schemas"]["LessonParity"];
+            type?: components["schemas"]["LessonType"];
+            /** Format: int32 */
+            slotSpan?: number;
+            /** @description Replaces the whole attendance list when present. */
+            groupCodes?: string[];
+        };
+        TeacherCreate: {
+            fullName: string;
+            /** @description Board-sized name. */
+            shortName: string;
+            department?: string;
+        };
+        /** @description A partial rename. At least one field must be present. */
+        TeacherUpdate: {
+            fullName?: string;
+            shortName?: string;
+            department?: string;
+        };
+        GroupCreate: {
+            /** @example Группа 7 */
+            code: string;
+            program?: string;
+            /** Format: int32 */
+            courseYear?: number;
+        };
+        /** @description A partial rename. At least one field must be present. */
+        GroupUpdate: {
+            code?: string;
+            program?: string;
+            /** Format: int32 */
+            courseYear?: number;
+        };
+        CourseCreate: {
+            /** @example AIF1303 */
+            code: string;
+            title: string;
+            department?: string;
+        };
+        /** @description A partial edit. At least one field must be present. */
+        CourseUpdate: {
+            code?: string;
+            title?: string;
+            department?: string;
+        };
         /** @description Liveness payload. */
         Health: {
             /** @enum {string} */
@@ -1048,6 +1630,10 @@ export interface components {
         AtQuery: string;
         /** @description Local building date `YYYY-MM-DD`. Defaults to the building's current local date. */
         DateQuery: string;
+        /** @description Lesson template id returned by `createLesson` or `listLessons`. */
+        LessonIdPath: string;
+        /** @description Id of the teacher, student group or course being edited. */
+        EntityIdPath: string;
         /** @description Previously received `ETag`. The server answers `304` when the payload is unchanged. */
         IfNoneMatch: string;
     };
@@ -1227,6 +1813,54 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    listBuildingRooms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Building code, e.g. `A`. */
+                code: components["parameters"]["BuildingCodePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every room of the building, ordered by floor then code. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoomList"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listBuildingSlots: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Building code, e.g. `A`. */
+                code: components["parameters"]["BuildingCodePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Time slots, ordered by `idx`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlotList"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
     getRoomDay: {
         parameters: {
             query?: {
@@ -1337,6 +1971,86 @@ export interface operations {
             400: components["responses"]["BadRequest"];
         };
     };
+    listTeachers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every teacher. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeacherList"];
+                };
+            };
+        };
+    };
+    listGroups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every student group, ordered by `code`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupList"];
+                };
+            };
+        };
+    };
+    listCourses: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every course, ordered by `code`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseList"];
+                };
+            };
+        };
+    };
+    listSemesters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every semester. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SemesterList"];
+                };
+            };
+        };
+    };
     streamEvents: {
         parameters: {
             query: {
@@ -1384,6 +2098,31 @@ export interface operations {
                     "application/json": components["schemas"]["TimeInfo"];
                 };
             };
+        };
+    };
+    listOverrides: {
+        parameters: {
+            query?: {
+                /** @description Local building date `YYYY-MM-DD`. Defaults to the building's current local date. */
+                date?: components["parameters"]["DateQuery"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The overrides of that date. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverrideList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
         };
     };
     createOverride: {
@@ -1461,6 +2200,364 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    listLessons: {
+        parameters: {
+            query?: {
+                /** @description Restrict to one semester. Defaults to the semester containing today. */
+                semesterId?: string;
+                /** @description ISO weekday, 1 = Monday … 7 = Sunday. */
+                weekday?: number;
+                /** @description Restrict to one room. */
+                roomCode?: string;
+                /** @description Restrict to one teacher. */
+                teacherId?: string;
+                /** @description Restrict to the lessons one student group attends. */
+                groupCode?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Matching lessons, ordered by weekday, slot and room. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createLesson: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LessonCreate"];
+            };
+        };
+        responses: {
+            /** @description The created lesson. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lesson"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    deleteLesson: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Lesson template id returned by `createLesson` or `listLessons`. */
+                id: components["parameters"]["LessonIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Lesson deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateLesson: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Lesson template id returned by `createLesson` or `listLessons`. */
+                id: components["parameters"]["LessonIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LessonUpdate"];
+            };
+        };
+        responses: {
+            /** @description The updated lesson. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lesson"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    createTeacher: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeacherCreate"];
+            };
+        };
+        responses: {
+            /** @description The created teacher. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeacherRef"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    deleteTeacher: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the teacher, student group or course being edited. */
+                id: components["parameters"]["EntityIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Teacher deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    updateTeacher: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the teacher, student group or course being edited. */
+                id: components["parameters"]["EntityIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeacherUpdate"];
+            };
+        };
+        responses: {
+            /** @description The updated teacher. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeacherRef"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupCreate"];
+            };
+        };
+        responses: {
+            /** @description The created group. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchGroup"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    deleteGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the teacher, student group or course being edited. */
+                id: components["parameters"]["EntityIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Group deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    updateGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the teacher, student group or course being edited. */
+                id: components["parameters"]["EntityIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupUpdate"];
+            };
+        };
+        responses: {
+            /** @description The updated group. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchGroup"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    createCourse: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CourseCreate"];
+            };
+        };
+        responses: {
+            /** @description The created course. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchCourse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    deleteCourse: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the teacher, student group or course being edited. */
+                id: components["parameters"]["EntityIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Course deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    updateCourse: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the teacher, student group or course being edited. */
+                id: components["parameters"]["EntityIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CourseUpdate"];
+            };
+        };
+        responses: {
+            /** @description The updated course. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchCourse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
 }

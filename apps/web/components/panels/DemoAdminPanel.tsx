@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { Override, OverrideRequest } from '@campuslive/contracts';
 import { api } from '@/lib/api/client';
@@ -102,9 +103,26 @@ export function DemoAdminPanel({ tz }: { tz: string }) {
           data-testid="admin-panel"
           style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 14, fontWeight: 800 }}>{t('title')}</span>
-            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{t('subtitle')}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 14, fontWeight: 800 }}>{t('title')}</span>
+              <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{t('subtitle')}</span>
+            </div>
+            {/* the way into the full panel; the ticker's own layout is untouched */}
+            <Link
+              href="/admin"
+              data-testid="open-admin"
+              style={{
+                ...buttonStyle,
+                textDecoration: 'none',
+                color: 'var(--accent)',
+                borderColor: 'color-mix(in srgb, var(--accent) 45%, transparent)',
+                background: 'color-mix(in srgb, var(--accent) 12%, transparent)',
+                flex: 'none',
+              }}
+            >
+              {t('page.openAdmin')} →
+            </Link>
           </div>
 
           <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>

@@ -8,9 +8,9 @@ import {
   EXPLODED_RX,
   EXPLODED_RZ,
   PERSPECTIVE,
-  PLATE_GAP,
   fitExploded,
   fitFocus,
+  plateZ,
   samplePath,
   type ExplodedFit,
   type FocusFit,
@@ -136,7 +136,7 @@ export function Scene({
 
   const layerTarget = (i: number) => {
     if (!focused) {
-      return { z: (i - 1.5) * PLATE_GAP, opacity: 1, x: 0, y: 0 };
+      return { z: plateZ(i, floors.length), opacity: 1, x: 0, y: 0 };
     }
     if (i === focusIdx) return { z: 0, opacity: 1, x: 0, y: 0 };
     if (i === focusIdx - 1) {

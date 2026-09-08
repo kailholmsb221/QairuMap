@@ -24,11 +24,11 @@ describe('BoardRow', () => {
     const { getByRole } = renderWithIntl(<BoardRow session={session()} tz={TZ} />);
     const row = getByRole('row');
     expect(row.textContent).toContain('10:00');
-    expect(row.textContent).toContain('213');
-    expect(row.textContent).toContain('CS201');
-    expect(row.textContent).toContain('Databases');
-    expect(row.textContent).toContain('Akhmetov D.');
-    expect(row.textContent).toContain('ПО2308, ПО2309');
+    expect(row.textContent).toContain('100');
+    expect(row.textContent).toContain('HK1105');
+    expect(row.textContent).toContain('История Казахстана');
+    expect(row.textContent).toContain('Преподаватель 7');
+    expect(row.textContent).toContain('Группа 1, Группа 2');
     expect(row.textContent).toContain('→ 11:50');
   });
 
@@ -92,13 +92,13 @@ describe('BoardRow', () => {
   it('MOVED → room — keeps the row in the original room column', () => {
     const { getByRole } = renderWithIntl(
       <BoardRow
-        session={session({ status: 'moved', roomCode: '414', movedFromRoomCode: '412' })}
+        session={session({ status: 'moved', roomCode: '101', movedFromRoomCode: '226A' })}
         tz={TZ}
       />,
     );
     const row = getByRole('row');
-    expect(row.getAttribute('data-room')).toBe('412');
-    expect(row.querySelector('[data-pill="moved"]')?.textContent).toBe('MOVED → 414');
+    expect(row.getAttribute('data-room')).toBe('226A');
+    expect(row.querySelector('[data-pill="moved"]')?.textContent).toBe('MOVED → 101');
   });
 
   it('DELAYED +n — shows the delay the server applied', () => {

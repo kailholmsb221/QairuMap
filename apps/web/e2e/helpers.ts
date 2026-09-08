@@ -14,6 +14,7 @@ export type Snapshot = {
 
 export type Session = {
   sessionId: string;
+  lessonId?: string;
   courseCode: string;
   courseTitle: string;
   roomCode: string;
@@ -27,7 +28,10 @@ export async function board(request: APIRequestContext): Promise<Snapshot> {
   return (await res.json()) as Snapshot;
 }
 
-/** The seeded `213 · CS201 Databases` session that the SSE scenario cancels. */
+/**
+ * A seeded session of the demo day, e.g. the Assembly Hall's
+ * `100 · HK1105 История Казахстана` that the SSE scenario cancels.
+ */
 export async function findSession(
   request: APIRequestContext,
   roomCode: string,
@@ -87,4 +91,28 @@ export async function waitForApp(page: Page): Promise<void> {
     undefined,
     { timeout: 15_000 },
   );
+}
+
+/* --------------------------------------------------------------- admin API */
+
+/** A free cell of the seeded Tuesday grid: room `201`, slot 5 (12:00–12:50). */
+export const FREE_CELL = { roomCode: '201', slotIdx: 5, weekday: 2 } as const;
+
+export async function listLessons(
+  request: APIRequestContext,
+  weekday: number,
+): Promise<{ id: string; roomCode: string; slotIdx: number; courseCode: string }[]> {
+  const res = await request.get(`${API_URL}/api/v1/admin/lessons?weekday=${weekday}`, {
+    headers: { 'X-Api-Key': ADMIN_KEY },
+  });
+  const body = (await res.json()) as {
+    lessons: { id: string; roomCode: string; slotIdx: number; courseCode: string }[];
+  };
+  return body.lessons;
+}
+
+export async function deleteLesson(request: APIRequestContext, id: string): Promise<void> {
+  await request.delete(`${API_URL}/api/v1/admin/lessons/${id}`, {
+    headers: { 'X-Api-Key': ADMIN_KEY },
+  });
 }

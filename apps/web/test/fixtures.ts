@@ -4,23 +4,28 @@ import type { RoomLiveState, SessionView, Snapshot } from '@campuslive/contracts
 export const NOW_ISO = '2026-09-08T05:47:00Z';
 export const TZ = 'Asia/Almaty';
 
+/**
+ * The real building: two floors, 51 spaces, 13 of them schedulable, five courses
+ * and the placeholder roster (`Преподаватель N` / `Группа N`). The default row is
+ * the Assembly Hall's `HK1105`, 10:00–11:50 — the hero session of the demo day.
+ */
 export function session(over: Partial<SessionView> = {}): SessionView {
   return {
     sessionId: 'lesson-1:2026-09-08',
     lessonId: '00000000-0000-0000-0000-000000000001',
-    courseCode: 'CS201',
-    courseTitle: 'Databases',
+    courseCode: 'HK1105',
+    courseTitle: 'История Казахстана',
     lessonType: 'lecture',
     teacher: {
       id: '00000000-0000-0000-0000-0000000000aa',
-      shortName: 'Akhmetov D.',
-      fullName: 'Akhmetov Daniyar Bolatuly',
-      department: 'Dept. of Computer Science',
+      shortName: 'Преподаватель 7',
+      fullName: 'Преподаватель 7',
+      department: '—',
     },
-    groups: ['ПО2308', 'ПО2309'],
+    groups: ['Группа 1', 'Группа 2'],
     roomId: '00000000-0000-0000-0000-0000000000bb',
-    roomCode: '213',
-    floor: 2,
+    roomCode: '100',
+    floor: 1,
     startAt: '2026-09-08T05:00:00Z',
     endAt: '2026-09-08T06:50:00Z',
     status: 'scheduled',
@@ -33,8 +38,8 @@ export function session(over: Partial<SessionView> = {}): SessionView {
 export function roomState(over: Partial<RoomLiveState> = {}): RoomLiveState {
   return {
     roomId: '00000000-0000-0000-0000-0000000000bb',
-    roomCode: '213',
-    floor: 2,
+    roomCode: '100',
+    floor: 1,
     phase: 'live',
     ...over,
   };
@@ -48,7 +53,7 @@ export function snapshot(over: Partial<Snapshot> = {}): Snapshot {
     weekNumber: 3,
     weekParity: 'odd',
     nextTransitionAt: '2026-09-08T05:50:00Z',
-    stats: { roomsTotal: 41, roomsBusy: 25, sessionsToday: 250, sessionsDone: 48 },
+    stats: { roomsTotal: 13, roomsBusy: 10, sessionsToday: 65, sessionsDone: 12 },
     rooms: [roomState({ current: session() })],
     now: [session()],
     next: [],

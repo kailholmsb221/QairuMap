@@ -47,7 +47,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `pnpm run build && pnpm run start -- --port ${PORT}`,
+    // `pnpm run start -- --port` forwards the `--` to `next start`, which then reads
+    // it as a project directory; go through `pnpm exec` so the flag lands cleanly.
+    command: `pnpm run build && pnpm exec next start --port ${PORT}`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,
