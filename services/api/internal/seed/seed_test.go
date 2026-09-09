@@ -46,7 +46,7 @@ func TestGenerateStatics(t *testing.T) {
 	require.Equal(t, 2, ds.Building.Floors, "the real building has two floors")
 
 	require.Len(t, ds.Floors, 2)
-	require.Len(t, ds.Rooms, 51, "every space of building-a.json")
+	require.Len(t, ds.Rooms, 54, "every space of building-a.json")
 	require.Len(t, ds.Teachers, seed.TeacherCount)
 	require.Len(t, ds.Groups, seed.GroupCount)
 	require.Len(t, ds.Courses, len(courseCodes))

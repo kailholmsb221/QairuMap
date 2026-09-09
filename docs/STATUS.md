@@ -694,3 +694,174 @@ at one room, rather than crowding every busy one.
 | `apps/web` vitest · `tsc` · `eslint` | 93 passed · clean · clean |
 | `packages/map-data` vitest | 12 passed |
 | `go vet` · `go test -count=1 ./...` | 6 packages ok |
+
+---
+
+# Phase — the trace becomes drawn geometry
+
+The plates were built straight out of a pixel segmentation, so every wall was a
+staircase: ~40 vertices per room, each edge a degree or two off true, and a
+façade that read as hand-torn. `scripts/authoring/regularize.mjs` closes that
+gap between *traced* and *drawn*.
+
+The building is an arc, so the usual trick — find the plate's dominant axis and
+snap everything to it — does not apply: the rooms fan out around the curve and
+there is no one axis. Each room is instead straightened in **its own** frame,
+which is the right model, because a room here is a rectangle that happens to be
+rotated. The façade is filtered rather than snapped, since it is genuinely
+curved, then rescaled to its original area and given 3 units of slack so the
+perimeter rooms it was traced against stay enclosed.
+
+| | before | after |
+|---|---|---|
+| floor 1 vertices | 382 | **98** |
+| floor 2 vertices | 413 | **283** |
+| median wall skew | 15.0° / 7.0° | **0.8° / 0.7°** |
+
+Two guards keep it honest: a room whose area moves by more than 12 % keeps its
+merely-simplified polygon, and any vertex that still lands outside the smoothed
+façade is pinned to the wall rather than left poking through.
+
+The hall's structures are back on floor 1 (`TECH-N2`, `TECH-N3`, `TECH-S1`) —
+regularised they are clean rectangles rather than the ragged scraps that were
+removed earlier, so the served zone reads as structured instead of blank. It is
+now drawn in two greys, as the plan draws it: the hall recedes as one mass, the
+structures sit a shade lighter on top. Building back to **54 spaces**.
+
+No business logic moved. Room codes, ids, ordering, the database rows and every
+handler are untouched — only vertices changed.
+
+| Gate | Result |
+|---|---|
+| `svg:author` · `map:build` | 16 + 38 = 54 spaces, 13 schedulable |
+| `packages/map-data` vitest | 12 passed |
+| `go vet` · `go test -count=1 ./...` | 6 packages ok |
+| `apps/web` vitest · `tsc` · `eslint` | 93 passed · clean · clean |
+| Interaction sweep | floor switch, hover, click, non-teaching room, search, legend, mobile — all pass |
+
+
+---
+
+# Phase — the plates are rebuilt from the plans
+
+The map was rebuilt from `reference/floor-{1,2}.png` from scratch. The old
+pipeline kept a hand-maintained table of rectangles beside a partial trace, and
+the two had drifted: floor 1 landed twelve traced rooms in a plate of invented
+boxes, so `100` was a sliver in the middle of the lobby instead of the hall in
+the south-west corner, and the CR / cinema / WC band was four small squares
+instead of two long runs. That table is gone. Every polygon on both plates is now
+the one the plan draws.
+
+The tracer is `packages/map-data/scripts/authoring/` (Python — OpenCV, SciPy,
+shapely). Walls are the Scharr ridge of the plan's luminance with the white room
+captions **inpainted out first**, which is what unlocked the rest: traced as-is a
+number bit its own shape out of the polygon around it and erased the wall it sat
+on. The doorway gaps the plan draws are then sealed by *oriented line closings* —
+a gap in a straight wall is collinear, so a line kernel bridges it while a room,
+which is not a line, never fills in. That is what finally separates `206`-`213`,
+seven offices the plan joins through open doorways.
+
+Sealing rounds the corners it reaches into, so the seeds it produces are used
+only for **identity**. The shape comes from the components of the plate minus the
+*thin* walls — crisp, square corners intact — each handed to the seed inside it,
+with the wall band split down its centre line so two neighbours meet on the same
+line. Rooms are named by an **anchor**, a point in plan pixels, not by a cell
+number, so re-tuning the segmentation cannot silently renumber the building.
+
+| | floor 1 | floor 2 |
+|---|---|---|
+| spaces traced (was: traced / invented) | **16 / 0** (was 12 / 4) | **38 / 0** (was 36 / 2) |
+| median overlap with the plan | **0.95** | **0.95** |
+| worst overlap | 0.90 `CORE-N1` | 0.88 `CORE-N2` |
+| outline vertices | 69 | 73 |
+
+`pnpm --filter @campuslive/map-data run svg:check` prints that overlap table and
+writes `reference/authored-check.png`, each authored plate beside its plan.
+
+Two consumers had drifted with the old geometry and were corrected: `FloorLayer`
+still hid `200` and `LOBBY` as "the central hall", which blanked a real lecture
+hall, and it skipped the stair cores, which are now traced structures rather than
+authoring rectangles and draw like the rest of the plan. `svg2map` reads
+`<g id="corridors">` from the SVG instead of clipping two hard-coded bands, so
+the circulation the plan draws — the lobby, the slots through the north hall, the
+corridor ring — is on the plate.
+
+No business logic moved. Room codes, ids, types, wings, capacities, the
+schedulable set, the database rows, the seed and every handler are untouched.
+
+| Gate | Result |
+|---|---|
+| `svg:author` · `svg:check` · `map:build` | 16 + 38 = 54 spaces, 13 schedulable, median overlap 0.95 |
+| `packages/map-data` vitest | 12 passed |
+| `apps/web` vitest · `tsc` · `eslint` | 93 passed · clean · clean |
+| `go build ./...` · `go test ./...` | clean · 6 packages ok |
+| Interaction sweep (1920×1080 + 390×844) | floor switch, hover, select, tooltip, detail panel, legend, labels, no page scroll — all pass; no console errors beyond the offline API |
+
+`apps/web/e2e/visual.spec.ts-snapshots/` was deleted: both baselines are of the
+old plates. Regenerate on Linux against the demo stack with
+`pnpm e2e --update-snapshots` and commit the two PNGs.
+
+
+---
+
+# Phase — the plates become drawn geometry, not a trace
+
+The plates were right about *where* every room is and wrong about *what* it looks
+like. Walls wobbled a degree either side of true, corners came back chamfered,
+rooms the plan draws the same width came out different widths, and the finer half
+of the plan — the stub partitions, the thin passages, the service closets, the
+line work of floor 1's south-east block — was missing from the plate entirely.
+
+Two bugs were behind it.
+
+**The crisp cells were being thrown away.** The doorway seal is what separates
+rooms the plan joins through an open door, but it rounds corners and swallows the
+smallest rooms whole. The tracer treated its blobs as the rooms, so a room the
+seal erased was dissolved into its neighbours by a nearest-blob fill — which is
+what turned the WC cluster into a set of rounded lumps with diagonal boundaries.
+It is the other way round: **the crisp cells are the rooms**, and the sealed
+blobs only say which of them a doorway joins. A cell holding two blobs is two
+rooms and is split; a cell holding none is a room the seal erased and keeps its
+own shape. Every partitioned room and closet on both plates came back.
+
+**The move guard measured the wrong distance.** Straightening replaces the dozen
+vertices a trace leaves along one wall with the two ends of it, and the guard
+compared corner to corner — so the middle of a 60-unit wall read as a 30-unit
+move and *every* room was rejected. Measured point-to-wall instead, the
+straightening runs: 47 of the 53 spaces are now rectilinear, and the six that are
+not are the ones the plan genuinely does not draw square.
+
+With those fixed, the straightening became worth doing properly. `rectify` turns
+a room onto the axis its own walls run at, forces every wall to the nearer axis,
+swallows jags and flattens serrations, and rebuilds the ring from those lines;
+`consolidate` then averages, across the whole floor, the lines that are one wall
+the trace saw twice. Both guards are judged after clipping to the façade, so a
+perimeter room keeps straight party walls and a curved outer edge. A partition
+traced from an open line drawing has no axis of its own and is squared to the
+room beside it, which is what keeps a block of them a grid.
+
+| | floor 1 | floor 2 |
+|---|---|---|
+| room vertices (was) | **163** (473) | **261** (1125) |
+| rectilinear rooms | 12 / 15 | 35 / 38 |
+| structures drawn (was) | **41** (23) | **10** (3) |
+| median overlap with the plan | 0.92 | 0.93 |
+| cells the plan encloses / shapes drawn | 52 / 57 | 39 / 48 |
+| size drift from the traced cell | ≤ 8 % | ≤ 13 % |
+
+Everything the plan draws but does not number is now emitted as
+`<g id="corridors">` and, in `FloorPlan`, **stroked** as well as filled — a
+partition is a line before it is an area, and at 3.5 % white with no stroke the
+finer half of the plan was invisible. Two tokens, `--fill-circulation` and
+`--line-circulation`, carry it in both themes.
+
+No business logic moved. Room codes, ids, types, wings, capacities, the
+schedulable set, the database rows, the seed and every handler are untouched.
+
+| Gate | Result |
+|---|---|
+| `svg:author` · `svg:check` · `map:build` | 16 + 38 = 54 spaces, 13 schedulable, median overlap 0.92 / 0.93 |
+| `packages/map-data` vitest | 12 passed |
+| `apps/web` vitest · `tsc` · `eslint` | 93 passed · clean · clean |
+| `go vet` · `go test ./...` | clean · 6 packages ok |
+| Plate sweep (1920×1080 + 390×844) | 54 rooms drawn, 0 captions overflow their room, no page scroll, no console errors beyond the offline API |

@@ -1,12 +1,13 @@
 # @campuslive/map-data
 
-The one geometry artifact for building A. Two floors, 51 spaces, one shared
+The one geometry artifact for building A. Two floors, 54 spaces, one shared
 `viewBox 0 0 600 1000`, one silhouette per floor.
 
 ```
-reference/floor-{1,2}.png  →  segmentation  →  scripts/authoring/traced.json
-scripts/authoring/{traced.json,geometry,build-svg}.mjs   →  svg/floor-{1,2}.svg
-svg/floor-{1,2}.svg  →  scripts/svg2map.ts  →  building-a.json   (committed)
+reference/floor-{1,2}.png                       the two real plan renders
+  └─ scripts/authoring/{plan,geometry,rooms}.py     trace · straighten · fit
+       └─ scripts/authoring/build_svg.py  →  svg/floor-{1,2}.svg
+            └─ scripts/svg2map.ts         →  building-a.json   (committed)
 ```
 
 `building-a.json` is what `apps/web` renders and what `cmd/seed` inserts, so
@@ -14,38 +15,40 @@ nothing anywhere else may hard-code room coordinates.
 
 ## The two steps
 
-**`pnpm --filter @campuslive/map-data run svg:author`** regenerates the two SVGs.
-Almost every room is the polygon segmented from the real plan and committed in
-`scripts/authoring/traced.json`; the handful of spaces the plan draws white — the
-lobby, the cafe, the stair cores — fall back to the axis-aligned rectangles in
-`scripts/authoring/geometry.mjs`, clipped to their own floor's silhouette. The
-corridors are the white gaps left between them. The generator refuses to write if
-a space clips away to nothing, drops below 26×26, escapes the outline, or (for the
-fallback rectangles only) overlaps a room it should not.
+**`pnpm --filter @campuslive/map-data run svg:author`** re-traces the two plans
+and rewrites the SVGs. Every space is the polygon the plan itself draws; the only
+hand-placed shape is the tag the plan prints `cafe` inside, which has no fill of
+its own to segment (`SHAPES` in `scripts/authoring/rooms.py`). Needs the Python
+packages in `scripts/authoring/requirements.txt`; `map:build` does not.
 
 **`pnpm --filter @campuslive/map-data run build`** (a.k.a. `pnpm map:build`)
 parses the SVGs and writes `building-a.json`, validating it against
-`docs/BUILDING.md`: two floors, 51 spaces, and the exact schedulable set of each
+`docs/BUILDING.md`: two floors, 54 spaces, and the exact schedulable set of each
 floor.
 
-## The SVGs are the source of truth, not the tables
+**`pnpm --filter @campuslive/map-data run svg:check`** renders each authored
+plate beside the plan it came from into `reference/authored-check.png`, and
+prints how much of each drawn room still overlaps the cell it was traced from.
+Those two are how the geometry is verified — a room that sits where the plan does
+not put it shows up in both.
 
-`svg2map.ts` only ever reads `svg/floor-{1,2}.svg`. The authoring generator is a
-convenience for laying a whole floor out at once — **the SVGs may equally be
-hand-edited afterwards**, and `building-a.json` is always built from whatever the
-SVGs currently say. Re-running `svg:author` overwrites hand edits, so either keep
-a change in the tables or stop using the generator for that floor.
+## The SVGs are the source of truth, not the plans
+
+`svg2map.ts` only ever reads `svg/floor-{1,2}.svg`, so **the SVGs may equally be
+hand-edited afterwards**. Re-running `svg:author` overwrites hand edits, so
+either keep a change in the tracer or stop using it for that floor.
 
 A floor SVG has to carry, in this order:
 
 | element | notes |
 |---|---|
 | `<svg viewBox="0 0 600 1000" data-floor data-building>` | |
-| `<path id="outline">` | the traced silhouette, identical on both floors |
+| `<path id="outline">` | the traced silhouette, one per floor |
 | `<g id="zones">` | `zone-north`, `zone-hall`, `zone-south` |
+| `<g id="corridors">` | every space the plan draws but does not number — circulation, partitions, closets — as `corridor-{n}` |
 | `<g id="rooms">` | `<path id="room-{CODE}" data-name data-type data-wing data-capacity data-schedulable d>` |
 | `<g id="cores">` | `core-n`, `core-s`, each with `data-name` — emitted as rooms `CORE-{N,S}{floor}` too |
-| `<g id="landmarks">` | `<use id="stairs-sf1" …>` |
+| `<g id="landmarks">` | `<use id="stairs-nf1" …>` |
 | `<g id="entrances">` | `entrance-w` with `data-main="true"`, `entrance-e` |
 | `<path id="atrium">` | floor 2 only — emitted as the room `VOID-2` |
 
@@ -53,18 +56,80 @@ A floor SVG has to carry, in this order:
 Codes are upper-case alphanumeric with hyphens (`100`, `102A`, `AI-LAB`,
 `WC-N2`, `CORE-S1`) and are unique building-wide.
 
-## Where the geometry comes from
+## How the tracer works
 
-`reference/` holds the two real floor-plan renders and `authored-check.png` — each
-generated plate beside the plan it came from, which is how the geometry is
-verified. Both plans are segmented directly: the background is flood-filled from
-the border, the plate is split into fills and wall strokes, the fill mask is
-eroded so doorway gaps stop leaking one room into the next, and the surviving
-cores are grown back so neighbours meet in the middle of the wall. Each floor
-keeps **its own** silhouette; floor 2's plan is drawn 90° clockwise from floor
-1's and is rotated back before both are fitted into the shared box.
-`docs/BUILDING.md` is the authoritative room programme and records the two
-doorway-fused pairs that are cut apart by hand.
+`scripts/authoring/plan.py` segments a plan render into cells:
+
+- **walls** are the Scharr ridge of the luminance. The white room captions are
+  inpainted first, so a number neither bites a notch out of its own room nor
+  erases the wall it happens to sit on.
+- **doorways** are the gaps the plan draws in an otherwise straight wall. They
+  are sealed by *oriented line closings*: a gap in a straight wall is collinear,
+  so a line kernel bridges it while a room, which is not a line, never fills in.
+- **cells** are the components of the plate minus the *thin* walls. That is the
+  room, crisply, with its notches and partitions intact — every one of them, down
+  to a service closet.
+- **seeds** are the components left when the sealed walls are cut out instead.
+  They round off corners and swallow the smallest rooms whole, so they are used
+  only to say **which cells a doorway joins**: a cell holding two seeds is two
+  rooms and is split between them by nearest seed; a cell holding one is that
+  room; a cell holding none is a room the sealing erased, and keeps its own shape
+  as a cell of its own. The wall band itself goes to the nearest cell, so two
+  neighbours meet on the centre line of the wall between them.
+
+`scripts/authoring/rooms.py` names the cells. A room is an **anchor** — a point
+in plan pixels that falls inside it — rather than a cell number, so re-tuning the
+segmentation cannot silently renumber the building. Several anchors mean the plan
+draws the space in more than one piece (`220`, whose two stub partitions stop
+short of the far wall) and the pieces are merged; the build fails if they turn
+out not to touch.
+
+`scripts/authoring/geometry.py` turns a pixel contour into drawn walls, twice
+over. A trace is not geometry: every wall comes back as a staircase that wobbles
+a degree either side of true.
+
+**`rectify`** works on one space, **in its own frame** — the building is an arc,
+so its rooms fan out around the curve and there is no single axis to snap the
+plate to. A room here is a rectangle that happens to be rotated: the polygon is
+turned onto the axis its own walls run at, every edge is forced to the nearer of
+the two axes, runs that end up parallel are merged, walls shorter than
+`MIN_EDGE` are swallowed, a step shallower than `JOG` between two walls facing
+the same way is flattened (a serration the trace left on a soft edge, not a notch
+the plan drew), and the ring is rebuilt from those lines. What comes out is
+rectilinear: straight walls, square corners, no stray diagonals. A partition
+traced from an open line drawing has no reliable axis of its own, so it is
+squared to the room beside it — which is what keeps a block of them a grid.
+
+**`consolidate`** then works on the whole floor at once, because a wall is
+shared: every edge becomes a line, and lines that are nearly parallel and nearly
+coincident are one wall the trace saw twice, replaced by their common average.
+
+A straightening that would move more than 18 % of a space's area, or throw a wall
+more than a tenth of its size out of place, is rejected; the space keeps a softer
+pass that straightens only the walls near its own axis, which is what the handful
+of spaces the plan genuinely does not draw square need. Both guards are judged
+**after** clipping to the façade — a room on the outer wall is rectified like any
+other, which throws its curved edge a long way out, and the clip is what puts it
+back. Finally each space is pulled off the centre line of its wall, which is what
+draws the wall as a line on the plate.
+
+Floor 2's plan is drawn 90° clockwise from floor 1's and is turned back
+(`x' = H − y`, `y' = x`) before both plates are fitted into the shared box, so a
+room on the west façade of one sits over the room on the west façade of the
+other. The two outlines nearly, but not exactly, coincide — they are two separate
+drawings of the same building.
+
+Every cell that carries no code — the circulation, the stub partitions, the
+service closets, the line work of floor 1's south-east block — is emitted as
+`<g id="corridors">` and drawn under the rooms, filled and stroked. It is what
+you walk through and what divides the rooms, not what you are looking for, so it
+is never labelled and never clickable.
+
+`build_svg.py` refuses to write unless every code in `docs/BUILDING.md` found a
+home, every anchor lands on the plate, no cell is claimed twice, no room is
+narrower than 8 units, no two rooms of a floor overlap, and no room escapes the
+silhouette (the north hall deliberately contains `TECH-N2` and `TECH-N3`, as the
+plan draws them).
 
 ## Consumers
 

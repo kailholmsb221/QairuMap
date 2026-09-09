@@ -5,7 +5,7 @@
  *   packages/map-data/svg/floor-{1,2}.svg  →  packages/map-data/building-a.json
  *
  * The building has two floors; the room programme is `docs/BUILDING.md`, which
- * this script validates the SVGs against (schedulable set per floor, 51 spaces
+ * this script validates the SVGs against (schedulable set per floor, 54 spaces
  * in total).
  *
  * The output matches the `MapSpec` schema in `packages/contracts/openapi.yaml`
@@ -45,7 +45,7 @@ const BUILDING_CODE = 'A';
 const BUILDING_NAME = 'Main Academic Building';
 const BUILDING_TIMEZONE = 'Asia/Almaty';
 const FLOOR_NUMBERS = [1, 2] as const;
-const EXPECTED_ROOM_TOTAL = 51;
+const EXPECTED_ROOM_TOTAL = 54;
 const VIEW_BOX = [0, 0, 600, 1000] as const;
 
 /**
@@ -66,24 +66,6 @@ const ROOM_TYPES: readonly RoomType[] = [
   'void',
 ];
 const WINGS: readonly Wing[] = ['north', 'south', 'core'];
-
-/**
- * The two circulation spines of each plate, tinted a shade lighter than the
- * rooms. They are the white gaps the room rectangles leave, so they differ per
- * floor: on floor 1 the east–west run under the north hall and the diagonal gap
- * through the south block; on floor 2 the north and south legs of the corridor
- * ring between the perimeter rooms and the inner core.
- */
-const CORRIDOR_BANDS: Record<number, readonly { id: string; rect: readonly [number, number, number, number] }[]> = {
-  1: [
-    { id: 'corridor-north', rect: [56, 440, 440, 28] },
-    { id: 'corridor-south', rect: [150, 738, 310, 28] },
-  ],
-  2: [
-    { id: 'corridor-north', rect: [156, 222, 284, 28] },
-    { id: 'corridor-south', rect: [156, 758, 284, 28] },
-  ],
-};
 
 /**
  * docs/BUILDING.md: rooms that may carry lessons. The build fails if a floor's
@@ -185,16 +167,6 @@ function bboxOf(poly: Pt[]): { x: number; y: number; w: number; h: number } {
   return { x: r1(x0), y: r1(y0), w: r1(x1 - x0), h: r1(y1 - y0) };
 }
 
-function signedArea(poly: Pt[]): number {
-  let a = 0;
-  for (let i = 0; i < poly.length; i++) {
-    const p = poly[i] as Pt;
-    const q = poly[(i + 1) % poly.length] as Pt;
-    a += p[0] * q[1] - q[0] * p[1];
-  }
-  return a / 2;
-}
-
 function centroidOf(poly: Pt[]): Pt {
   let x = 0;
   let y = 0;
@@ -241,69 +213,6 @@ function labelAnchor(poly: Pt[]): { x: number; y: number } {
   }
   return { x: r1(c[0]), y: r1(c[1]) };
 }
-
-function intersect(p: Pt, q: Pt, a: Pt, b: Pt): Pt {
-  const A1 = q[1] - p[1];
-  const B1 = p[0] - q[0];
-  const C1 = A1 * p[0] + B1 * p[1];
-  const A2 = b[1] - a[1];
-  const B2 = a[0] - b[0];
-  const C2 = A2 * a[0] + B2 * a[1];
-  const det = A1 * B2 - A2 * B1;
-  if (Math.abs(det) < 1e-9) return q;
-  return [(B2 * C1 - B1 * C2) / det, (A1 * C2 - A2 * C1) / det];
-}
-
-/**
- * Sutherland–Hodgman clip of a subject polygon by a **convex** clip polygon.
- * Only ever called with a rectangle as the clip window (see `clipToRect`): the
- * real silhouette is concave — a bay on the west façade and a notch on the east —
- * and using it as the clip window would cut the wrong pieces off.
- */
-function clipPolygon(subject: Pt[], clip: Pt[]): Pt[] {
-  const sign = signedArea(clip) > 0 ? 1 : -1;
-  let output = subject;
-  for (let i = 0; i < clip.length; i++) {
-    const a = clip[i] as Pt;
-    const b = clip[(i + 1) % clip.length] as Pt;
-    const input = output;
-    output = [];
-    if (!input.length) break;
-    const inside = (p: Pt): boolean =>
-      sign * ((b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])) >= -1e-9;
-    for (let j = 0; j < input.length; j++) {
-      const cur = input[j] as Pt;
-      const prev = input[(j + input.length - 1) % input.length] as Pt;
-      const ci = inside(cur);
-      const pi = inside(prev);
-      if (ci) {
-        if (!pi) output.push(intersect(prev, cur, a, b));
-        output.push(cur);
-      } else if (pi) {
-        output.push(intersect(prev, cur, a, b));
-      }
-    }
-  }
-  return output;
-}
-
-const rectPoly = ([x, y, w, h]: readonly [number, number, number, number]): Pt[] => [
-  [x, y],
-  [x + w, y],
-  [x + w, y + h],
-  [x, y + h],
-];
-
-/**
- * Concave-safe intersection of the (concave) outline with an axis-aligned band:
- * the rectangle is the convex clip window and the outline is the subject, which
- * is exactly the case Sutherland–Hodgman handles correctly.
- */
-const clipToRect = (outline: Pt[], rect: readonly [number, number, number, number]): Pt[] =>
-  clipPolygon(outline, rectPoly(rect));
-
-const polyToPath = (poly: Pt[]): string =>
-  poly.length ? `M ${poly.map(([x, y]) => `${r1(x)} ${r1(y)}`).join(' L ')} Z` : '';
 
 /* -------------------------------------------------------------------------- */
 /* SVG traversal                                                              */
@@ -387,8 +296,6 @@ async function convertFloor(n: number): Promise<FloorResult> {
     requireAttr(outlineNode, 'd', `${where} #outline`),
     `${where} #outline`,
   );
-  const outlinePoly = samplePath(outline);
-
   // ---- zones --------------------------------------------------------------
   const zones: MapZone[] = childrenOf(findById(svg, 'zones'), 'path').map((node) => {
     const id = requireAttr(node, 'id', `${where} zones/path`);
@@ -396,11 +303,15 @@ async function convertFloor(n: number): Promise<FloorResult> {
   });
   if (zones.length === 0) fail(`${where}: <g id="zones"> is empty`);
 
-  // ---- corridors (derived from this floor's bands, clipped to the outline) -
-  const corridors: MapZone[] = (CORRIDOR_BANDS[n] ?? []).map(({ id, rect }) => {
-    const poly = clipToRect(outlinePoly, rect);
-    if (poly.length < 3) fail(`${where}: corridor "${id}" is empty after clipping to the outline`);
-    return { id, path: polyToPath(poly) };
+  /*
+    The circulation the plan draws — the white gaps the rooms leave. Traced from
+    the plan like everything else, so it differs per floor: on floor 1 the lobby
+    band and the slots cut through the north hall, on floor 2 the corridor ring
+    between the perimeter rooms and the inner core.
+  */
+  const corridors: MapZone[] = childrenOf(findById(svg, 'corridors'), 'path').map((node) => {
+    const id = requireAttr(node, 'id', `${where} corridors/path`);
+    return { id, path: assertClosedPath(requireAttr(node, 'd', `${where} #${id}`), `${where} #${id}`) };
   });
 
   // ---- rooms --------------------------------------------------------------

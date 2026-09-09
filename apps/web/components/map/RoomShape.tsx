@@ -10,13 +10,17 @@ export type SceneMode = 'exploded' | 'focus';
  * How a space with no timetable is painted.
  *
  * Blue is every room a visitor can walk into — the cafe, the library, an office —
- * so they stay as legible as a lecture hall. Grey is the served zone: the north
- * hall, the structures standing inside it and the stair cores. It is filled like
- * everything else on the plan but carries no name, because it is what you walk
- * through rather than what you are looking for.
+ * so they stay as legible as a lecture hall.
+ *
+ * The rest is the served zone, in two greys because the plan draws it in two:
+ * the hall recedes as one dark mass (`zone`) and the structures standing inside
+ * it read a shade lighter on top (`service`). Neither is ever labelled — it is
+ * what you walk through rather than what you are looking for.
  */
-function quietPhase(code: string): 'service' | 'room' {
-  return /^(ATRIUM|TECH|CORE)/.test(code) ? 'service' : 'room';
+function quietPhase(code: string): 'zone' | 'service' | 'room' {
+  if (/^ATRIUM/.test(code)) return 'zone';
+  if (/^(TECH|CORE)/.test(code)) return 'service';
+  return 'room';
 }
 
 export type RoomShapeProps = {

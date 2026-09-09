@@ -6,9 +6,9 @@ import type { MapCore, MapFloor } from '@campuslive/contracts';
 /**
  * Stairs + elevator glyphs, ported from `coreGlyph()` in `docs/design/src/plan.mjs`.
  *
- * Not currently drawn: the cores sit at authoring rectangles rather than at
- * anything the real floor plans show, so the furniture read as clutter on the
- * plate. Kept for when the cores are traced from the plans like the rooms.
+ * Not currently drawn: the cores are traced from the plans and drawn by
+ * `FloorLayer` like any other space, and the furniture on top of them read as
+ * clutter at plate scale. Kept for a future detail pass.
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function CoreGlyph({ core }: { core: MapCore }) {
@@ -116,18 +116,30 @@ function Plan({ floor, idPrefix }: FloorPlanProps) {
         <path d={zone('zone-south')} fill="var(--wing-south)" />
       </g>
 
+      {/*
+        The structure the plan draws but never numbers: the circulation, the stub
+        partitions, the service closets, the line work of the south-east block.
+        Stroked as well as filled — a partition is a line before it is an area,
+        and without the stroke the finer half of the plan disappears.
+      */}
       <g id={`${idPrefix}corridors`}>
         {floor.corridors.map((c) => (
-          <path key={c.id} d={c.path} fill="rgba(255,255,255,.035)" />
+          <path
+            key={c.id}
+            d={c.path}
+            fill="var(--fill-circulation)"
+            stroke="var(--line-circulation)"
+            strokeWidth={0.8}
+            strokeLinejoin="round"
+          />
         ))}
       </g>
 
 
       {/*
-        Entrances are not drawn: like the stair cores they sit at authoring
-        rectangles rather than at anything the traced plans mark, so they landed
-        as stray squares on the façade. `floor.entrances` is still in the map
-        data, ready for when the doorways are traced from the plans.
+        Entrances are not drawn: the plans mark no doorway, so `floor.entrances`
+        is derived from the façade rather than traced, and drawing it landed as
+        stray squares on the edge. It stays in the map data for routing.
       */}
     </>
   );

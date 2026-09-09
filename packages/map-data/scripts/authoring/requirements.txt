@@ -1,0 +1,8 @@
+# Only `svg:author` and `svg:check` need these; `map:build` (svg -> building-a.json)
+# is pure Node and is what CI runs.
+#     python -m pip install -r scripts/authoring/requirements.txt
+numpy>=2.0
+scipy>=1.14
+opencv-python-headless>=4.10
+shapely>=2.0
+pillow>=10.0

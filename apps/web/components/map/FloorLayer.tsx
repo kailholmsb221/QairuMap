@@ -7,9 +7,6 @@ import { FloorEdge, FloorPlan } from './FloorPlan';
 import { PlanLabels } from './PlanLabels';
 import { RoomShape, type SceneMode } from './RoomShape';
 
-/** The central hall is drawn as a zone, not as a room. */
-const HALL_CODES = new Set(['LOBBY', '200']);
-
 export type RoomLabeller = (
   room: MapFloor['rooms'][number],
   state: RoomLiveState | undefined,
@@ -70,8 +67,6 @@ function Layer({
 
       <g id={`${idPrefix}rooms`}>
         {floor.rooms.map((room) => {
-          if (room.code.startsWith('CORE')) return null;
-          if (HALL_CODES.has(room.code)) return null;
           const phase = phases[room.code] ?? 'free';
           const isSel = selected === room.code;
           const isHl = hl.has(room.code);

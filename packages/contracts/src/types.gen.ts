@@ -501,11 +501,13 @@ export interface paths {
          *     screen shows it within a second.
          *
          *     **Validation.** `400` when the room is not `schedulable`, when the room type does not
-         *     suit the lesson type (a `lab` only in a `lab` room, a `lecture` for two or more groups
-         *     only in a `lecture` room), when the slot span would run past the last slot, or when a
-         *     referenced group does not exist. `409` when the room, the teacher or any of the groups
-         *     is already taken on that weekday in any of the slots the lesson spans, for a week
-         *     parity that overlaps (`all` collides with everything; `odd` and `even` do not collide).
+         *     suit the lesson type (a `lab` lesson only in a `lab` room, a `lecture` only in a
+         *     `lecture` room, a `practice` in any schedulable room), when the slot span would run
+         *     past the last slot of the day, or when `groupCodes` is empty. `404` when the semester,
+         *     course, teacher, room or one of the groups does not exist. `409` when the room, the
+         *     teacher or any of the groups is already taken on that weekday in one of the slots the
+         *     lesson spans, for a week parity that overlaps (`all` collides with everything; `odd`
+         *     and `even` do not collide with each other).
          *
          */
         post: operations["createLesson"];
@@ -2422,6 +2424,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            409: components["responses"]["Conflict"];
         };
     };
     deleteGroup: {
@@ -2503,6 +2506,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            409: components["responses"]["Conflict"];
         };
     };
     deleteCourse: {

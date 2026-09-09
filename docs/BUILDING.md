@@ -53,6 +53,9 @@ real arrangement is still readable.
 | `WC-2` | Дәретхана | Restrooms | service | south | — | нет |
 | `CAFE` | Асхана | Cafe | service | core | 120 | нет |
 | `ATRIUM-N` | Солтүстік атриум | North Atrium | service | north | — | нет |
+| `TECH-N2` | Техникалық бөлме | Technical | service | north | — | нет |
+| `TECH-N3` | Техникалық бөлме | Technical | service | north | — | нет |
+| `TECH-S1` | Техникалық бөлме | Technical | service | south | — | нет |
 | `CORE-N1` | Баспалдақ және лифт | Stairs & Lifts | service | core | — | нет |
 | `CORE-S1` | Баспалдақ | Stairs | service | core | — | нет |
 
@@ -98,15 +101,15 @@ each room sits on. That is descriptive; the `wing` column is the contract value.
 | `VOID-2` | Атриум ойығы | Atrium void | void | core | core | — | нет |
 | `CORE-N2` | Баспалдақ және лифт | Stairs & Lifts | service | core | core | — | нет |
 | `CORE-S2` | Баспалдақ | Stairs | service | core | core | — | нет |
-| `227` | IT департаменті | IT Department | admin | south | east | 15 | нет |
+| `227` | IT департаменті | IT Department | admin | south | east (inner) | 15 | нет |
 | `228` | Коворкинг | Coworking | coworking | north | core | 30 | нет |
-| `229` | Қызметтік бөлме | Staff Room | service | south | core | — | нет |
+| `229` | Қызметтік бөлме | Staff Room | service | south | west (outer) | — | нет |
 | `231` | Қойма бөлмесі | Storage Room | service | north | core | — | нет |
-| `232` | Қызметтік бөлме | Staff Room | service | south | core | — | нет |
+| `232` | Қызметтік бөлме | Staff Room | service | south | east (inner) | — | нет |
 
 Floor 2 schedulable: **`200`, `201`, `204`, `AI-LAB`, `219`, `222`, `223`, `224`, `226`, `226A`** (10).
 
-**Total: 51 spaces, 13 schedulable.**
+**Total: 54 spaces, 13 schedulable.**
 
 `210`, `211`, `212`, `215` appear on the plan but are not in the university's
 room list, so they carry a neutral "Кабинет NNN" name. `227`, `228`, `229`, `231` and `232` are
@@ -125,36 +128,74 @@ off that string (today only the dashed-gallery detail in
 
 ## Geometry
 
-Every room polygon is the one the real plan draws. The two reference renders in
-`packages/map-data/reference/floor-{1,2}.png` are segmented directly: white
-background is flood-filled from the border, the remaining plate is split into
-fills and wall strokes, the fill mask is eroded so doorway gaps stop leaking one
-room into the next, and the surviving cores are grown back geodesically so each
-label meets its neighbour in the middle of the wall. The resulting outlines and
-room polygons are committed as
-`packages/map-data/scripts/authoring/traced.json`, in `viewBox 0 0 600 1000`.
+Every polygon on the plate is the one the real plan draws. The two renders in
+`packages/map-data/reference/floor-{1,2}.png` are traced directly by
+`packages/map-data/scripts/authoring/` and written straight to
+`svg/floor-{1,2}.svg`; there is no intermediate table of rectangles, and
+`pnpm --filter @campuslive/map-data run svg:check` both draws each authored plate
+beside its plan and prints how much of every room still overlaps the cell it came
+from (median 0.92 on floor 1, 0.93 on floor 2).
 
-Each floor therefore carries **its own** silhouette rather than a shared one.
-Floor 2's plan is drawn 90° clockwise from floor 1's, so it is rotated back
+Walls are the Scharr ridge of the plan's luminance, with the white room captions
+inpainted out first — traced as-is, a number bit its own shape out of the polygon
+around it and erased the wall it happened to sit on. **The rooms are the
+components of the plate minus those walls**, which is the room crisply, with
+every notch, partition and service closet the plan draws still in it. The same
+walls with the doorway gaps sealed by oriented line closings give a second,
+coarser set of blobs; those are used only to decide **which of the crisp cells a
+doorway joins**. A cell holding two of them is two rooms and is split between
+them; a cell holding none is a room the sealing erased, and keeps its own shape.
+The wall band itself is split down the middle, so two neighbours meet on the same
+line.
+
+Each room is named by an **anchor**: a point in plan pixels that falls inside it,
+listed in `scripts/authoring/rooms.py`. Re-tuning the segmentation therefore
+cannot silently renumber the building. `220` carries three anchors because the
+plan runs it unbroken from `221` to the façade with two stub partitions inside,
+and `100`, `102A` and `103` two or three each for the same reason.
+
+Each floor carries **its own** silhouette rather than a shared one. Floor 2's
+plan is drawn 90° clockwise from floor 1's, so it is rotated back
 (`x' = H − y`, `y' = x`) before both plates are fitted into the shared box; that
 is why the two outlines nearly, but not exactly, coincide — they are two separate
 drawings of the same building.
 
-Each room on the plan carries its number in white type, and on a narrow room
-those glyphs touch the walls. Traced as-is the contour wrapped around the
-letters and bit number-shaped notches out of the polygon, so the captions are
-healed first: small enclosed white blobs are dilated and merged back into the
-room, and exempted from the wall-edge pass. With that done every labelled room
-separates on its own — 13/13 on floor 1 and 37/37 on floor 2.
+A pixel trace is not drawn geometry: every wall comes back as a staircase that
+wobbles a degree either side of true. `scripts/authoring/geometry.py` straightens
+it twice. First **per room, in its own frame** — the building is an arc, so there
+is no single axis to snap to, and a room here is a rectangle that happens to be
+rotated: it is turned onto the axis its own walls run at, every wall is forced to
+the nearer of the two axes, jags and serrations are swallowed, and the ring is
+rebuilt from those lines. What comes out is rectilinear: straight walls, square
+corners, no stray diagonals. A partition traced from an open line drawing has no
+reliable axis of its own and is squared to the room beside it, which is what
+keeps a block of them a grid. Then **per floor**, because a wall is shared: every
+edge becomes a line, and lines that are nearly parallel and nearly coincident are
+one wall the trace saw twice and are averaged into it.
 
-Five spaces per floor are drawn white on the plan and so cannot be segmented —
-`LOBBY`, `CAFE`, `TECH-N1`, `CORE-N1`, `CORE-S1` on floor 1 and `CORE-N2`,
-`CORE-S2` on floor 2. They keep the fallback rectangles in
-`scripts/authoring/geometry.mjs`, clipped to their own floor's outline.
+A straightening that would move more than 18 % of a room's area, or throw a wall
+more than a tenth of its size out of place, is rejected and the room keeps a
+softer pass that only straightens the walls near its own axis — which is what the
+handful of spaces the plan genuinely does not draw square need. Both guards are
+judged **after** clipping to the façade, so a room on the outer wall keeps
+straight party walls and a curved outer edge, exactly as the plan draws it.
+Finally every room is pulled back off the centre line of its wall, which is what
+draws the wall as a line on the plate.
 
-`ATRIUM-N` (the north hall) and `LOBBY` (the middle band) are container spaces:
-`TECH-N1…N3` stand inside the hall and `CAFE` inside the lobby, exactly as the
-plan shows. Every other pair of rooms is disjoint.
+One space cannot be segmented: the plan gives `CAFE` no fill of its own, only the
+rounded tag it prints `cafe` inside in the middle of the lobby. That tag is the
+polygon, listed in `SHAPES` in `scripts/authoring/rooms.py`. Everything else on
+both floors, the two stair cores included, is traced.
+
+`ATRIUM-N` (the north hall) is a container space: `TECH-N2` and `TECH-N3` stand
+inside it, exactly as the plan shows. Every other pair of rooms on a floor is
+disjoint, and the build fails if that stops being true.
+
+Every cell that carries no code — the circulation, the stub partitions, the
+service closets, the line work of floor 1's south-east block — is emitted as
+`<g id="corridors">` and drawn under the rooms, filled and stroked. It is what
+you walk through and what divides the rooms, not what you are looking for, so it
+is never labelled and never clickable.
 
 ## Schedule
 

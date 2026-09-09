@@ -37,8 +37,13 @@ const UNNUMBERED = /^(ATRIUM|CORE|TECH|VOID)/;
 /** Restrooms are signed, not numbered — exactly as the plan prints them. */
 const SIGNED: Record<string, string> = { 'WC-1': 'WC', 'WC-2': 'WC', 'WC-N2': 'WC', 'WC-S2': 'WC' };
 
-/** Rough advance width of the UI face, as a fraction of the font size. */
-const GLYPH = 0.6;
+/**
+ * Rough advance width of the UI face, as a fraction of the font size. Names are
+ * set heavier and wider-tracked than numbers, so they need the larger estimate —
+ * measure too small and a caption runs off its room onto the corridor.
+ */
+const GLYPH_NAME = 0.74;
+const GLYPH_CODE = 0.66;
 const NAME_MAX = 21;
 /** Below this a name is unreadable; the room shows its number instead. */
 const NAME_MIN = 13;
@@ -63,8 +68,8 @@ const down = (room: MapRoom): number => room.bbox.w;
  * lengths, and a room that can only take the short one would flip to a bare
  * number the moment the reader switched language.
  */
-function fitSize(text: string, room: MapRoom, max: number): number {
-  const byWidth = across(room) / (text.length * GLYPH);
+function fitSize(text: string, room: MapRoom, max: number, glyph: number): number {
+  const byWidth = across(room) / (text.length * glyph);
   const byHeight = down(room) / 2.1;
   return Math.floor(Math.min(max, byWidth, byHeight));
 }
@@ -81,7 +86,7 @@ function Labels({ floor, idPrefix }: PlanLabelsProps) {
 
         if (LANDMARKS.has(room.code)) {
           const name = roomName(room.code, room.name).toUpperCase();
-          const size = fitSize(name, room, NAME_MAX);
+          const size = fitSize(name, room, NAME_MAX, GLYPH_NAME);
           if (size >= NAME_MIN) {
             return (
               <text
@@ -101,7 +106,7 @@ function Labels({ floor, idPrefix }: PlanLabelsProps) {
         if (UNNUMBERED.test(room.code)) return null;
         const text = SIGNED[room.code] ?? room.code;
         if (Math.min(room.bbox.w, room.bbox.h) < CODE_MIN) return null;
-        if (fitSize(text, room, CODE_SIZE) < CODE_SIZE) return null;
+        if (fitSize(text, room, CODE_SIZE, GLYPH_CODE) < CODE_SIZE) return null;
 
         return (
           <text

@@ -52,6 +52,9 @@ var roomNames = map[string]string{
 	"WC-2":     "Дәретхана",
 	"CAFE":     "Асхана",
 	"ATRIUM-N": "Солтүстік атриум",
+	"TECH-N2":  "Техникалық бөлме",
+	"TECH-N3":  "Техникалық бөлме",
+	"TECH-S1":  "Техникалық бөлме",
 	"CORE-N1":  "Баспалдақ және лифт",
 	"CORE-S1":  "Баспалдақ",
 
@@ -122,6 +125,9 @@ var roomAliases = map[string]string{
 	"WC-2":     "туалет уборная санузел wc restroom дәретхана туалеты",
 	"CAFE":     "кафе кофе столовая буфет еда обед асхана cafe canteen coffee поесть",
 	"ATRIUM-N": "атриум холл северный atrium",
+	"TECH-N2":  "техническое помещение техничка technical",
+	"TECH-N3":  "техническое помещение техничка technical",
+	"TECH-S1":  "техническое помещение техничка technical",
 	"CORE-N1":  "лестница лифт эскалатор баспалдақ stairs lift elevator",
 	"CORE-S1":  "лестница баспалдақ stairs",
 

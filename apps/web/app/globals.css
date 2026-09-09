@@ -90,8 +90,12 @@
   --plan-label-dim: rgba(255, 255, 255, 0.72);
   --plan-zone: rgba(255, 255, 255, 0.13);
   --fill-service: var(--room-service);
+  --fill-zone: #545e6b;
   --fill-room: var(--room-free);
-  --fill-circulation: #333a45;
+  /* the structure the plan draws but does not number: partitions, service
+     closets, the line work between the rooms */
+  --fill-circulation: rgba(255, 255, 255, 0.05);
+  --line-circulation: rgba(255, 255, 255, 0.16);
 
   color-scheme: dark;
 }
@@ -114,9 +118,11 @@
 
   --room-free: #2f80d8;
   --room-service: #97a2ad;
+  --fill-zone: #9aa5b2;
   --fill-void: #e7ecf4;
   --fill-room: #2f80d8;
-  --fill-circulation: #aab4c1;
+  --fill-circulation: rgba(11, 15, 23, 0.05);
+  --line-circulation: rgba(11, 15, 23, 0.2);
   --plan-label: #ffffff;
   --plan-label-dim: rgba(255, 255, 255, 0.8);
   --plan-zone: rgba(11, 15, 23, 0.14);
@@ -418,7 +424,13 @@ button {
   stroke: rgba(255, 255, 255, 0.14);
 }
 
-/* plant rooms and stair cores — greyed, never a destination */
+/* the served zone: one recessive mass, never a destination */
+.floor-svg [data-phase='zone'] {
+  fill: var(--fill-zone);
+  stroke: rgba(255, 255, 255, 0.1);
+}
+
+/* the structures standing inside that zone, a shade lighter so they read */
 .floor-svg [data-phase='service'] {
   fill: var(--fill-service);
   stroke: rgba(255, 255, 255, 0.12);
