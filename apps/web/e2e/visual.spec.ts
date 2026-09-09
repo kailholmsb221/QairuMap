@@ -29,7 +29,6 @@ test('floor 2 focus', async ({ page }) => {
     mask: [
       page.getByTestId('clock'),
       page.locator('[data-pill="ending"]'),
-      page.locator('[data-room-chip]'),
     ],
     maxDiffPixelRatio: 0.02,
   });

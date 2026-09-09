@@ -1,35 +1,30 @@
 // CampusLive — authoring geometry for the two real floors of building A.
 //
-// Same visual language as `docs/design/src/geometry.mjs`: every space is an
-// axis-aligned rectangle in the shared `viewBox 0 0 600 1000` space, clipped to
-// the building silhouette. Corridors are the white gaps left between the
-// rectangles — they are never drawn as rooms.
+// Both plates live in the shared `viewBox 0 0 600 1000`. Corridors are the white
+// gaps left between the spaces — they are never drawn as rooms.
 //
-// The silhouette is the real one, traced from the floor-1 photo
-// (`reference/outline-traced.txt`, 60 points). Floor 1 is placed directly from
-// `reference/floor-1.png` through the photo→viewBox transform
-//   x' = 0.37911·x − 68.8 , y' = 0.37911·y + 16.1
-// Floor 2's photo is drawn at another orientation and scale, so its rooms are
-// placed topologically — the real plan rotated 90° clockwise, same ring order,
-// same neighbours — inside the same silhouette.
+// Geometry comes from the two real floor-plan renders in `reference/`, segmented
+// by `scripts/authoring/traced.json`: every room there is the polygon the plan
+// actually draws, and each floor carries its own silhouette. Floor 2's plan is
+// drawn 90° clockwise from floor 1's, so it is rotated back before both plates
+// are fitted into the shared box — that is why the two outlines nearly, but not
+// exactly, coincide. The rectangles below are the fallback for the handful of
+// spaces the render leaves white (the lobby, the cafe, the stair cores): they are
+// clipped to their own floor's outline.
 //
 // Room codes, types, capacities and schedulable flags come from docs/BUILDING.md
 // and nothing here may invent one.
 
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 export const VB = [0, 0, 600, 1000];
 
-/** Traced silhouette — `reference/outline-traced.txt`, verbatim. */
-export const OUTLINE_D =
-  'M 403.7 26.0 L 387.6 28.1 L 355.0 37.4 L 307.1 58.5 L 149.6 139.6 L 123.8 158.6 ' +
-  'L 89.3 192.5 L 70.8 219.4 L 63.7 234.5 L 47.4 284.1 L 41.9 337.1 L 51.1 422.8 ' +
-  'L 53.6 432.7 L 78.3 479.3 L 82.7 498.7 L 79.9 521.0 L 53.5 575.6 L 47.3 639.4 ' +
-  'L 47.3 675.6 L 52.4 710.6 L 57.1 727.3 L 71.6 758.9 L 102.3 799.8 L 141.5 831.5 ' +
-  'L 244.2 894.6 L 333.0 953.9 L 363.6 968.0 L 394.6 974.0 L 424.5 970.1 L 438.2 964.2 ' +
-  'L 462.3 944.9 L 481.5 918.0 L 501.8 869.9 L 520.5 801.3 L 525.2 769.9 L 520.5 745.1 ' +
-  'L 495.1 692.4 L 495.8 689.3 L 518.6 680.3 L 513.8 677.3 L 507.8 664.8 L 506.1 652.0 ' +
-  'L 508.7 648.6 L 516.1 648.7 L 538.9 642.0 L 548.6 629.9 L 553.1 585.3 L 530.6 537.0 ' +
-  'L 526.3 517.1 L 530.6 495.1 L 553.1 457.2 L 558.1 439.8 L 554.3 356.1 L 542.3 246.4 ' +
-  'L 526.4 157.4 L 511.8 106.1 L 504.8 90.1 L 487.1 61.6 L 463.5 40.0 L 435.3 28.3 Z';
+const HERE = dirname(fileURLToPath(import.meta.url));
+
+/** Polygons segmented from `reference/floor-{1,2}.png` — see README.md. */
+export const TRACED = JSON.parse(readFileSync(resolve(HERE, 'traced.json'), 'utf8'));
 
 /* -------------------------------------------------------------------------- */
 /* Polygon helpers                                                            */
@@ -84,7 +79,8 @@ export function samplePath(d, seg = 28) {
   return pts;
 }
 
-export const OUTLINE_POLY = samplePath(OUTLINE_D);
+/** Each plate's own silhouette. `OUTLINE_DS` is filled in below `polyToPath`. */
+export const OUTLINE_POLYS = { 1: TRACED[1].outline, 2: TRACED[2].outline };
 
 export function signedArea(poly) {
   let a = 0;
@@ -183,7 +179,8 @@ export function rectPoly([x, y, w, h]) {
  * concavity of the real façade is handled exactly: what comes back is the part of
  * the (concave) outline that lies inside the rectangle.
  */
-export function clipRect(rect, clip = OUTLINE_POLY) {
+export function clipRect(rect, floor = 1) {
+  const clip = Array.isArray(floor) ? floor : OUTLINE_POLYS[floor];
   return simplify(shClip(clip, rectPoly(rect)));
 }
 
@@ -212,8 +209,13 @@ export function polyToPath(poly) {
   return `M ${poly.map(([x, y]) => `${r1(x)} ${r1(y)}`).join(' L ')} Z`;
 }
 
-/** Rectangle → closed path, clipped to the silhouette. */
-export const rectPath = (rect) => polyToPath(clipRect(rect));
+/** Rectangle → closed path, clipped to that floor's silhouette. */
+export const rectPath = (rect, floor = 1) => polyToPath(clipRect(rect, floor));
+
+export const OUTLINE_DS = {
+  1: polyToPath(OUTLINE_POLYS[1]),
+  2: polyToPath(OUTLINE_POLYS[2]),
+};
 
 /* -------------------------------------------------------------------------- */
 /* Shared bands                                                               */
@@ -256,20 +258,14 @@ const R = (code, nameRu, nameEn, type, wing, capacity, schedulable, rect) => ({
  */
 export const FLOOR1 = [
   // ---- north: the hall, then the three structures standing inside it --------
+  // The served zone: one solid band clipped to the façade rather than a contour
+  // woven around every structure, which came back as ragged grey scraps.
   R('ATRIUM-N', 'Солтүстік атриум', 'North Atrium', 'service', 'north', null, false,
     [0, 0, 600, 442]),
-  R('TECH-N1', 'Техникалық бөлме', 'Technical', 'service', 'north', null, false,
-    [152, 244, 126, 196]),
-  R('TECH-N2', 'Техникалық бөлме', 'Technical', 'service', 'north', null, false,
-    [366, 212, 100, 218]),
-  R('TECH-N3', 'Техникалық бөлме', 'Technical', 'service', 'north', null, false,
-    [478, 288, 74, 96]),
 
-  // ---- middle band ---------------------------------------------------------
-  R('LOBBY', 'Фойе', 'Main Lobby', 'service', 'core', null, false,
-    [0, 440, 494, 116]),
+  // ---- middle band: the plan draws only the cafe here, the rest is corridor --
   R('CAFE', 'Асхана', 'Cafe', 'service', 'core', 120, false,
-    [312, 470, 76, 76]),
+    [286.6, 475.9, 53.6, 59.4]),
 
   // ---- south block ---------------------------------------------------------
   R('100', 'Мәжіліс залы', 'Assembly Hall', 'lecture', 'south', 180, true,
@@ -282,8 +278,6 @@ export const FLOOR1 = [
     [296, 574, 68, 96]),
   R('WC-2', 'Дәретхана', 'Restrooms', 'service', 'south', null, false,
     [276, 678, 68, 96]),
-  R('TECH-S1', 'Техникалық бөлме', 'Technical', 'service', 'south', null, false,
-    [368, 594, 84, 200]),
 
   // ---- south / south-east edge, west → east --------------------------------
   R('101', 'Оқу зертханасы', 'Teaching Laboratory', 'lab', 'south', 30, true,
@@ -326,20 +320,20 @@ export const FLOOR2 = [
     [156, 128, 48, 92]),
   R('203', 'Академиялық қызмет департаменті', 'Department of Academic Activities',
     'admin', 'north', 12, false, [208, 128, 48, 92]),
-  R('207', 'Ректор', "Rector's Office", 'admin', 'north', 8, false,
+  R('207', 'Ректор Тоқсанов Сапар Нұрахметұлы', 'Rector Sapar Toksanov', 'admin', 'north', 8, false,
     [260, 128, 48, 92]),
   R('206', 'Ректордың қабылдау бөлмесі', "Rector's Reception Office", 'admin', 'north', 6, false,
     [312, 128, 48, 92]),
-  R('208', 'Бірінші проректор', 'First Vice-Rector', 'admin', 'north', 8, false,
-    [312, 44, 48, 76]),
+  R('208', 'Бірінші проректор Өмірбаев Серік Мәуленұлы', 'First Vice-Rector Serik Omirbayev',
+    'admin', 'north', 8, false, [312, 44, 48, 76]),
   R('210', 'Кабинет 210', 'Office 210', 'admin', 'north', 6, false,
     [364, 128, 48, 92]),
   R('211', 'Кабинет 211', 'Office 211', 'admin', 'north', 6, false,
     [364, 44, 48, 76]),
   R('209', 'Проректорлардың қабылдау бөлмесі', "Vice-Rectors' Reception", 'admin', 'north', 6, false,
     [416, 128, 48, 92]),
-  R('213', 'Ректор кеңесшісі', 'Advisor to the Rector', 'admin', 'north', 4, false,
-    [468, 128, 48, 92]),
+  R('213', 'Ректор кеңесшісі Сабитов Айдын Маратұлы', 'Advisor to the Rector Aidyn Sabitov',
+    'admin', 'north', 4, false, [468, 128, 48, 92]),
   R('212', 'Кабинет 212', 'Office 212', 'admin', 'north', 6, false,
     [416, 44, 48, 76]),
 
@@ -378,6 +372,20 @@ export const FLOOR2 = [
     [312, 560, 104, 64]),
   R('WC-S2', 'Дәретхана', 'Restrooms', 'service', 'core', null, false,
     [312, 632, 104, 64]),
+
+  // ---- spaces the plan draws but the university's room list does not name.
+  //      Their polygons are traced like every other room; the rectangles are
+  //      only the fallback the generator never reaches. --------------------
+  R('227', 'IT департаменті', 'IT Department', 'admin', 'south', 15, false,
+    [452, 764, 96, 96]),
+  R('228', 'Коворкинг', 'Coworking', 'coworking', 'north', 30, false,
+    [196, 250, 60, 60]),
+  R('229', 'Қызметтік бөлме', 'Staff Room', 'service', 'south', null, false,
+    [330, 700, 56, 56]),
+  R('231', 'Қойма бөлмесі', 'Storage Room', 'service', 'north', null, false,
+    [268, 356, 56, 56]),
+  R('232', 'Қызметтік бөлме', 'Staff Room', 'service', 'south', null, false,
+    [330, 580, 56, 56]),
 ];
 
 /**
@@ -426,19 +434,28 @@ export const FLOORS = { 1: FLOOR1, 2: FLOOR2 };
 /* Derived                                                                    */
 /* -------------------------------------------------------------------------- */
 
-export function zonePaths() {
+export function zonePaths(n = 1) {
   const [h0, h1] = BANDS.hall;
   return {
-    north: rectPath([0, 0, 600, h0]),
-    hall: rectPath([0, h0, 600, h1 - h0]),
-    south: rectPath([0, h1, 600, 1000 - h1]),
+    north: rectPath([0, 0, 600, h0], n),
+    hall: rectPath([0, h0, 600, h1 - h0], n),
+    south: rectPath([0, h1, 600, 1000 - h1], n),
   };
 }
 
-/** Rooms of a floor, resolved to clipped polygons. */
+/**
+ * The polygon a space is actually drawn with: the one segmented from the real
+ * plan when there is one, otherwise its fallback rectangle clipped to the plate.
+ */
+export function polyFor(code, rect, n) {
+  const traced = TRACED[n]?.rooms?.[code];
+  return traced && traced.length >= 3 ? traced : clipRect(rect, n);
+}
+
+/** Rooms of a floor, resolved to their drawn polygons. */
 export function resolveFloor(n) {
   return FLOORS[n].map((r) => {
-    const poly = clipRect(r.rect);
+    const poly = polyFor(r.code, r.rect, n);
     return { ...r, floor: n, poly, path: polyToPath(poly), bbox: bbox(poly), area: polyArea(poly) };
   });
 }

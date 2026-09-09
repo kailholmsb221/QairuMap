@@ -10,21 +10,19 @@ import {
   phasesByFloor,
   type RoomDisplayPhase,
 } from '@/features/board/selectors';
-import { deriveProgress, formatCountdown, formatHm } from '@/features/time/derive';
-import { useNow } from '@/features/time/useNow';
+import { formatHm } from '@/features/time/derive';
 import { useBoardStore } from '@/lib/store/boardStore';
 import { useUiStore } from '@/lib/store/uiStore';
 import {
-  COMPACT_CHIP_WIDTH,
   eastMost,
   samplePath,
   type ExplodedFit,
   type FocusFit,
 } from '@/lib/map-geometry';
+import { useRoomName } from '@/features/rooms/useRoomName';
 import { IconWarn } from '@/components/chrome/Icons';
 import { TimeTravelBar } from '@/components/panels/TimeTravelBar';
 import { Legend } from './Legend';
-import { RoomChip } from './RoomChip';
 import { RoomTooltip } from './RoomTooltip';
 import { Scene } from './Scene';
 import { StatsChip } from './StatsChip';
@@ -37,73 +35,9 @@ export type MapStageProps = {
   lit?: boolean;
 };
 
-/** The chips over a focused plate; the only part of the map on the 1 Hz tick. */
-function RoomChips({
-  rooms,
-  states,
-  phases,
-  focus,
-  tz,
-  selectedRoom,
-  onSelect,
-}: {
-  rooms: MapRoom[];
-  states: Record<string, RoomLiveState>;
-  phases: Record<string, RoomDisplayPhase>;
-  focus: FocusFit;
-  tz: string;
-  selectedRoom: string | null;
-  onSelect: (code: string) => void;
-}) {
-  const t = useTranslations('map');
-  const now = useNow();
-
-  return (
-    <>
-      {rooms.map((room, i) => {
-        const state = states[room.code];
-        const phase = phases[room.code] ?? 'free';
-        const current = state?.current;
-        const [x, y] = focus.toScreen(room.label.x, room.label.y);
-        const compact = room.bbox.h * focus.s < COMPACT_CHIP_WIDTH;
-        let line: string;
-        let pct = 0;
-        if (current && phase !== 'free') {
-          const p = deriveProgress(current.startAt, current.endAt, now || current.startAt);
-          pct = p.pct;
-          line =
-            current.status === 'delayed'
-              ? `${t('endsIn', { countdown: formatCountdown(p.leftMs) })} · +${current.delayMinutes ?? 0}`
-              : t('endsIn', { countdown: formatCountdown(p.leftMs) });
-        } else if (state?.next) {
-          line = t('freeNext', { time: formatHm(state.next.startAt, tz) });
-        } else {
-          line = t('freeToday');
-        }
-        return (
-          <RoomChip
-            key={room.code}
-            code={room.code}
-            course={current?.courseCode}
-            line={line}
-            phase={phase}
-            pct={pct}
-            x={x}
-            y={y}
-            compact={compact}
-            selected={selectedRoom === room.code}
-            dim={!!selectedRoom && selectedRoom !== room.code}
-            delay={Math.min(0.25, i * 0.012) + 0.18}
-            onSelect={onSelect}
-          />
-        );
-      })}
-    </>
-  );
-}
-
 export function MapStage({ spec, tz, kiosk = false, lit = false }: MapStageProps) {
   const t = useTranslations('map');
+  const roomName = useRoomName();
   const hostRef = useRef<HTMLElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [fits, setFits] = useState<{ exploded: ExplodedFit; focus: FocusFit } | null>(null);
@@ -147,9 +81,18 @@ export function MapStage({ spec, tz, kiosk = false, lit = false }: MapStageProps
     return out;
   }, [snapshot, spec.floors]);
 
+  /** Every space on the plate, so a hit on one without lessons still resolves. */
+  const roomIndex = useMemo(() => {
+    const m = new Map<string, { floor: number; name: string }>();
+    for (const f of spec.floors) {
+      for (const r of f.rooms) m.set(r.code, { floor: f.number, name: roomName(r.code, r.name) });
+    }
+    return m;
+  }, [spec.floors, roomName]);
+
   const badges = useMemo(
-    () => highlightedRooms(snapshot, highlight, tz),
-    [snapshot, highlight, tz],
+    () => highlightedRooms(snapshot, highlight, tz, roomIndex),
+    [snapshot, highlight, tz, roomIndex],
   );
   const highlightSet = useMemo(() => new Set(Object.keys(badges)), [badges]);
 
@@ -163,22 +106,16 @@ export function MapStage({ spec, tz, kiosk = false, lit = false }: MapStageProps
       if (current) {
         return t('roomAriaLive', {
           code: room.code,
-          name: room.name,
+          name: roomName(room.code, room.name),
           course: `${current.courseCode} ${current.courseTitle}`,
           time: formatHm(current.endAt, tz),
         });
       }
       return room.schedulable
-        ? t('roomAriaFree', { code: room.code, name: room.name })
-        : t('roomAria', { code: room.code, name: room.name });
+        ? t('roomAriaFree', { code: room.code, name: roomName(room.code, room.name) })
+        : t('roomAria', { code: room.code, name: roomName(room.code, room.name) });
     },
-    [t, tz],
-  );
-
-  const focusFloorSpec = spec.floors.find((f) => f.number === focusedFloor);
-  const chipRooms = useMemo(
-    () => (focusFloorSpec ? focusFloorSpec.rooms.filter((r) => r.schedulable) : []),
-    [focusFloorSpec],
+    [t, tz, roomName],
   );
 
   const hoveredRoomSpec = useMemo(() => {
@@ -334,7 +271,11 @@ export function MapStage({ spec, tz, kiosk = false, lit = false }: MapStageProps
                           fontWeight: 700,
                           letterSpacing: '.1em',
                           color:
-                            info.kind === 'now' ? 'var(--status-live)' : 'var(--status-soon)',
+                            info.kind === 'now'
+                              ? 'var(--status-live)'
+                              : info.kind === 'room'
+                                ? 'var(--accent)'
+                                : 'var(--status-soon)',
                         }}
                       >
                         {info.label}
@@ -354,22 +295,6 @@ export function MapStage({ spec, tz, kiosk = false, lit = false }: MapStageProps
                 );
               })
             : null}
-
-          {/* room chips over the focused plate */}
-          <AnimatePresence>
-            {focusedFloor != null && fits ? (
-              <RoomChips
-                key={focusedFloor}
-                rooms={chipRooms}
-                states={states}
-                phases={phases[focusedFloor] ?? {}}
-                focus={fits.focus}
-                tz={tz}
-                selectedRoom={selectedRoom}
-                onSelect={selectRoom}
-              />
-            ) : null}
-          </AnimatePresence>
 
           <AnimatePresence>
             {hoveredRoomSpec && tooltipPos ? (

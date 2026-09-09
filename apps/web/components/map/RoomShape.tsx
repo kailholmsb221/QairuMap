@@ -6,6 +6,19 @@ import type { RoomDisplayPhase } from '@/features/board/selectors';
 
 export type SceneMode = 'exploded' | 'focus';
 
+/**
+ * How a space with no timetable is painted.
+ *
+ * Blue is every room a visitor can walk into — the cafe, the library, an office —
+ * so they stay as legible as a lecture hall. Grey is the served zone: the north
+ * hall, the structures standing inside it and the stair cores. It is filled like
+ * everything else on the plan but carries no name, because it is what you walk
+ * through rather than what you are looking for.
+ */
+function quietPhase(code: string): 'service' | 'room' {
+  return /^(ATRIUM|TECH|CORE)/.test(code) ? 'service' : 'room';
+}
+
 export type RoomShapeProps = {
   room: MapRoom;
   phase: RoomDisplayPhase;
@@ -41,9 +54,12 @@ function Shape({
   onHover,
 }: RoomShapeProps) {
   const isVoid = room.type === 'void';
-  const dataPhase = isVoid ? 'void' : !room.schedulable ? 'service' : phase;
+  const dataPhase = isVoid ? 'void' : !room.schedulable ? quietPhase(room.code) : phase;
   const conflict = phase === 'conflict' && room.schedulable && !isVoid;
-  const canInteract = interactive && room.schedulable;
+  // Every space answers to a click, not just the teaching ones: the point of the
+  // plan is to find the cafe, a restroom or an office as readily as a lecture
+  // hall. Only the atrium void stays inert — it is a hole, not a room.
+  const canInteract = interactive && !isVoid;
 
   return (
     <g opacity={dimmed ? dimTo : 1} style={{ transition: 'opacity var(--dur-base) var(--ease-out)' }}>

@@ -27,8 +27,8 @@ returning id, code, name, timezone;
 insert into floors (id, building_id, number, plan_key) values (@id, @building_id, @number, @plan_key);
 
 -- name: InsertRoom :batchexec
-insert into rooms (id, floor_id, code, name, type, wing, schedulable, capacity, geometry)
-values (@id, @floor_id, @code, @name, @type, @wing, @schedulable, @capacity, @geometry);
+insert into rooms (id, floor_id, code, name, type, wing, schedulable, capacity, geometry, aliases)
+values (@id, @floor_id, @code, @name, @type, @wing, @schedulable, @capacity, @geometry, @aliases);
 
 -- name: InsertTeacher :batchexec
 insert into teachers (id, full_name, short_name, department)

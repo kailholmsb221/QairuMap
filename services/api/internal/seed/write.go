@@ -107,6 +107,7 @@ func Write(ctx context.Context, pool *pgxpool.Pool, ds *Dataset, reset bool) (Re
 			Schedulable: r.Schedulable,
 			Capacity:    int32Ptr(r.Capacity),
 			Geometry:    geometry,
+			Aliases:     r.Aliases,
 		})
 	}
 	if err := collect(q.InsertRoom(ctx, rooms).Exec); err != nil {

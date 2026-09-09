@@ -240,5 +240,3 @@ export function fitFocus(stageW: number, stageH: number): FocusFit {
   };
 }
 
-/** Rooms narrower than this on screen get the compact chip (code + arc only). */
-export const COMPACT_CHIP_WIDTH = 118;

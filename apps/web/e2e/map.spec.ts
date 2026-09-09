@@ -11,13 +11,11 @@ test('floor tab 2 enters focus view and room 226 opens the detail panel', async 
   await page.getByTestId('floor-tab-2').click();
   await expect(scene).toHaveAttribute('data-mode', 'focus');
 
-  // chips appear over the focused plate
-  const chip = page.locator('[data-room-chip="226"]');
-  await expect(chip).toBeVisible();
-  await expect(chip).toContainText('226');
-  await expect(chip).toContainText('IP1302');
+  // the room itself is the target — the plate prints the number, not a chip
+  const room = page.locator('[data-room="226"]');
+  await expect(room).toBeVisible();
 
-  await chip.click();
+  await room.click();
 
   const panel = page.getByTestId('room-detail');
   await expect(panel).toBeVisible();

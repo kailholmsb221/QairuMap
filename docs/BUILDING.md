@@ -15,6 +15,18 @@ Every room carries a Kazakh/Russian display name and an English one. The seed
 writes the Russian name into `rooms.name` (that is what the UI shows) and the
 English one into the map data `data-name`, so both are available.
 
+The **displayed** name is not the seeded one, though: `apps/web/messages/{ru,kk,en}.json`
+carries a `rooms.<CODE>` entry for every space, so switching language renames the
+whole plan — Кітапхана · Библиотека · Library. `features/rooms/useRoomName.ts`
+resolves it and falls back to whatever the API sent, so a room added to the
+building shows under its seeded name until it is translated.
+
+It also writes a third string, `rooms.aliases` — the everyday words a visitor
+types («кафе», «туалет», «коворкинг», «айти департамент»), in all three
+languages at once. Nothing renders it; `SearchRooms` matches on it so that
+searching for a place by its ordinary name finds it and the map points at it.
+The table lives in `services/api/internal/seed/data.go`.
+
 ## Wings
 
 `wing` has exactly three values — `north`, `south`, `core`. That is the `Wing`
@@ -40,12 +52,7 @@ real arrangement is still readable.
 | `WC-1` | Дәретхана | Restrooms | service | south | — | нет |
 | `WC-2` | Дәретхана | Restrooms | service | south | — | нет |
 | `CAFE` | Асхана | Cafe | service | core | 120 | нет |
-| `LOBBY` | Фойе | Main Lobby | service | core | — | нет |
 | `ATRIUM-N` | Солтүстік атриум | North Atrium | service | north | — | нет |
-| `TECH-N1` | Техникалық бөлме | Technical | service | north | — | нет |
-| `TECH-N2` | Техникалық бөлме | Technical | service | north | — | нет |
-| `TECH-N3` | Техникалық бөлме | Technical | service | north | — | нет |
-| `TECH-S1` | Техникалық бөлме | Technical | service | south | — | нет |
 | `CORE-N1` | Баспалдақ және лифт | Stairs & Lifts | service | core | — | нет |
 | `CORE-S1` | Баспалдақ | Stairs | service | core | — | нет |
 
@@ -65,13 +72,13 @@ each room sits on. That is descriptive; the `wing` column is the contract value.
 | `204` | Оқу зертханасы | Teaching Laboratory | lab | core | core | 25 | **да** |
 | `205` | Қойма бөлмесі | Warehouse | service | core | core | — | нет |
 | `206` | Ректордың қабылдау бөлмесі | Rector's Reception Office | admin | north | north | 6 | нет |
-| `207` | Ректор | Rector's Office | admin | north | north | 8 | нет |
-| `208` | Бірінші проректор | First Vice-Rector | admin | north | north (outer) | 8 | нет |
+| `207` | Ректор Тоқсанов Сапар Нұрахметұлы | Rector Sapar Toksanov | admin | north | north | 8 | нет |
+| `208` | Бірінші проректор Өмірбаев Серік Мәуленұлы | First Vice-Rector Serik Omirbayev | admin | north | north (outer) | 8 | нет |
 | `209` | Проректорлардың қабылдау бөлмесі | Vice-Rectors' Reception | admin | north | north | 6 | нет |
 | `210` | Кабинет 210 | Office 210 | admin | north | north | 6 | нет |
 | `211` | Кабинет 211 | Office 211 | admin | north | north (outer) | 6 | нет |
 | `212` | Кабинет 212 | Office 212 | admin | north | north (outer) | 6 | нет |
-| `213` | Ректор кеңесшісі | Advisor to the Rector | admin | north | north | 4 | нет |
+| `213` | Ректор кеңесшісі Сабитов Айдын Маратұлы | Advisor to the Rector Aidyn Sabitov | admin | north | north | 4 | нет |
 | `214` | Бухгалтерлік есеп департаменті | Accounting Department | admin | north | east | 12 | нет |
 | `215` | Кабинет 215 | Office 215 | admin | north | east | 8 | нет |
 | `AI-LAB` | AI зертханасы | AI Lab | lab | core | east | 25 | **да** |
@@ -91,13 +98,23 @@ each room sits on. That is descriptive; the `wing` column is the contract value.
 | `VOID-2` | Атриум ойығы | Atrium void | void | core | core | — | нет |
 | `CORE-N2` | Баспалдақ және лифт | Stairs & Lifts | service | core | core | — | нет |
 | `CORE-S2` | Баспалдақ | Stairs | service | core | core | — | нет |
+| `227` | IT департаменті | IT Department | admin | south | east | 15 | нет |
+| `228` | Коворкинг | Coworking | coworking | north | core | 30 | нет |
+| `229` | Қызметтік бөлме | Staff Room | service | south | core | — | нет |
+| `231` | Қойма бөлмесі | Storage Room | service | north | core | — | нет |
+| `232` | Қызметтік бөлме | Staff Room | service | south | core | — | нет |
 
 Floor 2 schedulable: **`200`, `201`, `204`, `AI-LAB`, `219`, `222`, `223`, `224`, `226`, `226A`** (10).
 
 **Total: 51 spaces, 13 schedulable.**
 
 `210`, `211`, `212`, `215` appear on the plan but are not in the university's
-room list, so they carry a neutral "Кабинет NNN" name. The plan shows the
+room list, so they carry a neutral "Кабинет NNN" name. `227`, `228`, `229`, `231` and `232` are
+the same case one step further: the plan draws the space but numbers nothing, so
+the code is ours. There is deliberately no `230`: the band it was first given is
+part of `220`, which runs unbroken from `221` to the façade — the two stub
+partitions inside it stop short of the far wall. `227` (IT department) and `228` (coworking) were named by the building's
+own staff; `229`–`232` are the leftover service rooms of the inner core. The plan shows the
 Teaching Laboratory number `226` twice; the second one is coded `226A`.
 
 `VOID-2` is the floor-2 `<path id="atrium">`: `svg2map` emits it as the floor's
@@ -108,27 +125,36 @@ off that string (today only the dashed-gallery detail in
 
 ## Geometry
 
-Both floors share one building silhouette, traced from the floor-1 photo
-(`packages/map-data/reference/outline-traced.txt`, 60 points, `viewBox 0 0 600 1000`).
-The floor-2 photo is drawn at a different orientation and scale, so its rooms are
-placed **topologically** — same neighbours, same ring-and-core arrangement — inside
-the shared silhouette, with the real plan turned **90° clockwise** so its long axis
-runs north–south. Floor 1 is placed directly from its own photo.
+Every room polygon is the one the real plan draws. The two reference renders in
+`packages/map-data/reference/floor-{1,2}.png` are segmented directly: white
+background is flood-filled from the border, the remaining plate is split into
+fills and wall strokes, the fill mask is eroded so doorway gaps stop leaking one
+room into the next, and the surviving cores are grown back geodesically so each
+label meets its neighbour in the middle of the wall. The resulting outlines and
+room polygons are committed as
+`packages/map-data/scripts/authoring/traced.json`, in `viewBox 0 0 600 1000`.
 
-Floor-1 photo → viewBox transform: `x' = 0.37911·x − 68.8`, `y' = 0.37911·y + 16.1`
-(the photo is 1920×2560; the building occupies x 292…1653, y 26…2527).
+Each floor therefore carries **its own** silhouette rather than a shared one.
+Floor 2's plan is drawn 90° clockwise from floor 1's, so it is rotated back
+(`x' = H − y`, `y' = x`) before both plates are fitted into the shared box; that
+is why the two outlines nearly, but not exactly, coincide — they are two separate
+drawings of the same building.
 
-The silhouette is concave in two places — a bay on the west façade around
-y 470…530 and a notch on the east around y 645…695 — so rooms are clipped to it
-with the *rectangle* as the convex clip window, never the outline.
+Each room on the plan carries its number in white type, and on a narrow room
+those glyphs touch the walls. Traced as-is the contour wrapped around the
+letters and bit number-shaped notches out of the polygon, so the captions are
+healed first: small enclosed white blobs are dilated and merged back into the
+room, and exempted from the wall-edge pass. With that done every labelled room
+separates on its own — 13/13 on floor 1 and 37/37 on floor 2.
+
+Five spaces per floor are drawn white on the plan and so cannot be segmented —
+`LOBBY`, `CAFE`, `TECH-N1`, `CORE-N1`, `CORE-S1` on floor 1 and `CORE-N2`,
+`CORE-S2` on floor 2. They keep the fallback rectangles in
+`scripts/authoring/geometry.mjs`, clipped to their own floor's outline.
 
 `ATRIUM-N` (the north hall) and `LOBBY` (the middle band) are container spaces:
 `TECH-N1…N3` stand inside the hall and `CAFE` inside the lobby, exactly as the
-photo shows. Every other pair of rooms is disjoint.
-
-The authoring tables that produce the two SVGs live in
-`packages/map-data/scripts/authoring/geometry.mjs`; `packages/map-data/reference/authored-check.png`
-is the rendered plans side by side with the two photos.
+plan shows. Every other pair of rooms is disjoint.
 
 ## Schedule
 

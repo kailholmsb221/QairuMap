@@ -118,6 +118,21 @@ describe('highlight', () => {
     expect(badges['226']).toMatchObject({ kind: 'next', label: 'NEXT 12:00', floor: 2 });
   });
 
+  it('points at a room that carries no lesson at all', () => {
+    // The cafe, a restroom and every office are absent from `now`/`next`, so
+    // without the room index searching for one used to light nothing up.
+    const rooms = new Map([['CAFE', { floor: 1, name: 'Асхана' }]]);
+    const badges = highlightedRooms(s, { kind: 'room', id: 'CAFE' }, TZ, rooms);
+    expect(badges['CAFE']).toEqual({ kind: 'room', label: 'HERE', sub: 'Асхана', floor: 1 });
+  });
+
+  it('prefers the live lesson over the plain room badge', () => {
+    const rooms = new Map([['100', { floor: 1, name: 'Мәжіліс залы' }]]);
+    expect(highlightedRooms(s, { kind: 'room', id: '100' }, TZ, rooms)['100']).toMatchObject({
+      kind: 'now',
+    });
+  });
+
   it('matches teachers by id, rooms by code and courses by code', () => {
     expect(
       Object.keys(highlightedRooms(s, { kind: 'teacher', id: history.teacher.id }, TZ)),

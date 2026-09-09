@@ -294,8 +294,8 @@ func (b *InsertLessonGroupBatchResults) Close() error {
 }
 
 const insertRoom = `-- name: InsertRoom :batchexec
-insert into rooms (id, floor_id, code, name, type, wing, schedulable, capacity, geometry)
-values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+insert into rooms (id, floor_id, code, name, type, wing, schedulable, capacity, geometry, aliases)
+values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 `
 
 type InsertRoomBatchResults struct {
@@ -314,6 +314,7 @@ type InsertRoomParams struct {
 	Schedulable bool
 	Capacity    *int32
 	Geometry    []byte
+	Aliases     string
 }
 
 func (q *Queries) InsertRoom(ctx context.Context, arg []InsertRoomParams) *InsertRoomBatchResults {
@@ -329,6 +330,7 @@ func (q *Queries) InsertRoom(ctx context.Context, arg []InsertRoomParams) *Inser
 			a.Schedulable,
 			a.Capacity,
 			a.Geometry,
+			a.Aliases,
 		}
 		batch.Queue(insertRoom, vals...)
 	}

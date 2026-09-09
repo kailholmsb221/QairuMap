@@ -167,6 +167,7 @@ func (ds *Dataset) buildStatics(spec *mapspec.Spec) error {
 				Wing:        domain.Wing(r.Wing),
 				Schedulable: r.Schedulable,
 				Capacity:    r.Capacity,
+				Aliases:     RoomAliases(r.Code),
 				Floor:       f.Number,
 				FloorID:     floorID,
 				Geometry: domain.Geometry{

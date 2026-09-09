@@ -148,6 +148,7 @@ select r.id, r.code, r.name, r.type, f.number as floor_number
 from rooms r
 join floors f on f.id = r.floor_id
 where r.code ilike '%' || $1 || '%' or r.name ilike '%' || $1 || '%'
+   or r.aliases ilike '%' || $1 || '%'
 order by (r.code ilike $1 || '%') desc, f.number, r.code
 limit $2
 `

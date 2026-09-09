@@ -114,7 +114,7 @@ func TestGenerateRoomNames(t *testing.T) {
 	require.Equal(t, "Кітапхана", byCode["102"])
 	require.Equal(t, "AI зертханасы", byCode["AI-LAB"])
 	require.Equal(t, "Компьютерлік сынып", byCode["222"])
-	require.Equal(t, "Ректор", byCode["207"])
+	require.Equal(t, "Ректор Тоқсанов Сапар Нұрахметұлы", byCode["207"])
 }
 
 // The room ids must be the ones building-a.json carries, or the map and the

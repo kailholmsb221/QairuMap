@@ -437,3 +437,260 @@ board within a second.
    `PATCH` otherwise, and every edit in the panel is one.
 3. **`210`, `211`, `212`, `215` carry neutral "Кабинет NNN" names** — they are on
    the plan but not in the university's room list.
+
+---
+
+# Phase — real room geometry
+
+The two plates no longer approximate the plans with rectangles: every room is the
+polygon the real plan draws, segmented straight out of
+`packages/map-data/reference/floor-{1,2}.png` and committed as
+`packages/map-data/scripts/authoring/traced.json`.
+
+| Before | After |
+|---|---|
+| one shared silhouette (60 pts) traced from the floor-1 photo | one silhouette **per floor** — 42 pts (f1) and 34 pts (f2) |
+| floor 2 placed *topologically*: right ring order, invented rectangles | floor 2 placed from its own plan, rotated 90° CW into the shared box |
+| every room an axis-aligned rectangle | 44 of 51 spaces are real polygons; 7 white-on-plan spaces keep rectangles |
+
+The segmentation flood-fills the background from the border, splits the plate into
+fills and wall strokes, erodes the fill mask so doorway gaps stop leaking one room
+into the next, then grows the surviving cores back so neighbours meet in the
+middle of the wall. Two pairs are fused by a doorway and are cut apart on the
+perpendicular bisector of their captions: `102`/`102A` and `209`/`210`.
+
+`207`, `208` and `213` now carry the office holders' names, per the university's
+room list.
+
+| Gate | Result |
+|---|---|
+| `pnpm --filter @campuslive/map-data run svg:author` | clean — 18 + 33 = **51 spaces** |
+| `pnpm map:build` | 51 rooms, **13 schedulable**, unchanged per-floor sets |
+| `packages/map-data` vitest | 12 passed |
+| `go build ./...` · `go test ./...` | green |
+| `apps/web` vitest · `tsc --noEmit` | 91 passed · clean |
+| `go run ./cmd/seed --reset` | 51 rooms · 432 lessons · 40 overrides |
+
+## Deliberate deviations
+
+4. **The two silhouettes differ slightly.** They are two separate drawings of one
+   building, so the plates are concentric but not identical — that reads as a
+   set-back in the stacked view, which is what the plans show.
+5. **`mapspec.TestLoad` asserted 4 floors / 89 rooms**, left over from the
+   four-floor draft. Corrected to 2 / 51 — the building `docs/BUILDING.md`
+   describes.
+
+---
+
+# Phase — every space named, every space findable
+
+Searching for a place by its ordinary name now finds it and the map points at
+it, whether or not a class is running there.
+
+**The bug.** `highlightedRooms` only ever walked `snapshot.now` and
+`snapshot.next`, so a hit could only light up a room that had a lesson. The
+cafe, the restrooms, the library and every office are never in either list —
+searching for one highlighted nothing at all. It now takes a room index built
+from the map spec and always resolves a `room` hit, falling back to a plain
+`HERE` badge when there is no lesson to describe.
+
+**The vocabulary.** `rooms.name` holds the university's Kazakh wording, so
+«кафе», «туалет», «коворкинг» or «айти департамент» matched nothing. Migration
+`0003_room_aliases.sql` adds `rooms.aliases`, a search-only synonym bag in all
+three languages that `SearchRooms` also matches on. It is never rendered.
+
+**The gaps.** Six spaces the plan draws but never numbers are now real rooms —
+`227` IT департаменті, `228` Коворкинг, and `229`–`232` service rooms of the
+inner core. The building is **57 spaces**, still 13 schedulable.
+
+| Query | Finds |
+|---|---|
+| `кафе` | `CAFE` |
+| `туалет` | `WC-1` `WC-2` `WC-N2` `WC-S2` |
+| `коворкинг` | `102` `102A` `228` |
+| `айти` | `222` `227` |
+| `склад` | `205` `231` |
+| `синема` | `CINEMA` |
+
+| Gate | Result |
+|---|---|
+| `svg:author` · `map:build` | 18 + 39 = **57 spaces**, 13 schedulable |
+| `packages/map-data` vitest | 12 passed |
+| `go build` · `go vet` · `go test -count=1 ./...` | green |
+| `apps/web` vitest · `tsc --noEmit` | 93 passed · clean |
+| `go run ./cmd/seed --reset` | 57 rooms · 432 lessons |
+
+## Deliberate deviations
+
+6. **`internal/repo/gen` was hand-edited.** `sqlc` will not build on this
+   machine's 32-bit toolchain (`math.MaxInt64` overflows `int` in a transitive
+   TiDB parser dependency), so the three `aliases` edits were written by hand in
+   exactly the shape `sqlc generate` emits. Re-run generation on a 64-bit host
+   before trusting the drift check.
+7. **`227`–`232` are our codes, not the university's.** The plan draws the
+   spaces and numbers none of them; `docs/BUILDING.md` records which are
+   staff-supplied names and which are placeholders.
+8. **Five slivers on floor 2 stay unnamed.** They are 2–6 kpx segmentation
+   artifacts along wall lines, not rooms, and read as corridor.
+
+---
+
+# Phase — the plan reads like a wayfinding board
+
+The map is restyled after a public campus plan: a dark plate, every space a
+visitor can enter in blue, plant rooms and stair cores grey, and the room number
+printed inside each room.
+
+**Printed numbers.** `components/map/PlanLabels.tsx` draws a code in every room
+and the full name in the landmarks (assembly hall, library, cafe, cinema, lobby,
+atrium, coworking). The focused plate is turned −90° about Z, so each label is
+counter-rotated +90° about its own anchor to read horizontally. A name is only
+printed when it actually fits the room's on-screen width; otherwise the room
+falls back to its number. Restrooms are signed `WC`, as the plan itself prints
+them. Only the focused plate prints — the ghost of the floor below stays mute.
+
+**Three quiet fills.** A room with no timetable used to be painted the same grey
+as a plant room, so most of the plan read as "not a place". `RoomShape` now
+splits them: `room` (blue — the cafe, the library, every office), `service`
+(grey — `TECH*`, `CORE*`) and `circulation` (ground — the north hall and the
+lobby). Every space is clickable too; only the atrium void stays inert.
+
+**Chips only where something happens.** A chip sits on the room's label anchor,
+so one per free room buried the numbers under a row of "free today". They are
+now limited to rooms with a live, ending or starting class.
+
+**A geometry defect the restyle exposed.** Printing numbers made it obvious that
+several polygons had number-shaped notches bitten out of them: each room on the
+plan carries its number in white type, and on a narrow room those glyphs touch
+the walls, so the contour tracer wrapped around the letters. The tracer now heals
+captions first — small enclosed white blobs are dilated and merged back into the
+room, and exempted from the Sobel wall pass. Floor 2's worst polygon fell from
+**42 points to 16**. With the glyphs no longer acting as accidental separators,
+erosion rose to 10 (floor 1) and 14 (floor 2); both floors now match **every**
+labelled room automatically — 13/13 and 37/37 — so the two hand-cut pairs
+(`102`/`102A`, `209`/`210`) are no longer needed.
+
+| Gate | Result |
+|---|---|
+| `svg:author` · `map:build` | 18 + 38 = 56 spaces, 13 schedulable |
+| `packages/map-data` vitest | 12 passed |
+| `go vet` · `go test -count=1 ./...` | green |
+| `apps/web` vitest · `tsc --noEmit` | 93 passed · clean |
+| `cmd/seed --reset` | 56 rooms · 432 lessons |
+
+---
+
+# Fix — `220` is one room, and there is no `230`
+
+Reported from the plan: the band between `219` and `221` is a single room, `220`,
+running unbroken to the façade. Two stub partitions inside it — walls that stop
+short of the far side — had split it into three components, and the largest of
+the strays had been named `230`.
+
+`230` is gone (56 spaces, floor 2 down to 38) and the tracer learned to weld: a
+code repeated in the labels file, once per piece, claims every one of them. The
+extra components are relabelled onto the first and the union is re-traced as a
+single contour, so `220` is now 24 843 px across 26 points instead of three
+polygons with a false neighbour between them.
+
+This is the general remedy for a stub partition, and the first case where the
+segmentation needed to be told something the pixels alone could not say.
+
+| Gate | Result |
+|---|---|
+| `map:build` | 18 + 38 = 56 spaces, 13 schedulable |
+| `packages/map-data` vitest | 12 passed |
+| `go vet` · `go test -count=1 ./...` | green |
+| `cmd/seed --reset` | 56 rooms · 432 lessons |
+
+---
+
+# Phase — floor 1 is the plan, and rooms speak three languages
+
+**Floor 1 now draws only what the plan draws.** `LOBBY` and `TECH-N1` were
+authoring rectangles with no counterpart on the real plan, and `CAFE` sat 26
+units from where the plan prints it; the first two are gone and the cafe moved
+onto its box. The building is **54 spaces** (16 + 38), still 13 schedulable.
+
+**The furniture is gone.** Stair/lift glyphs and entrance doorways were drawn at
+authoring rectangles rather than anything the plans mark, so they landed as
+stray squares and hatched boxes on the plate. `FloorPlan` no longer renders
+either; both stay in the map data, ready for when they are traced.
+
+**Two fills, not three.** Blue is every room a visitor can walk into. Grey is the
+served zone — the north hall, the structures standing in it and the stair cores —
+filled as solidly as the rest of the plan but carrying **no caption at all**: it
+is what you walk through, not what you are looking for. The `circulation` fill
+that used to sink the hall into the background is gone.
+
+**Room names follow the locale.** `rooms.name` in the database is the
+university's own Kazakh wording — one string, no locale. The translations live
+in `messages/{ru,kk,en}.json` under `rooms.<CODE>` and are resolved by
+`features/rooms/useRoomName.ts`, used by the plan labels, the tooltip, the
+detail panel and the search results. Switching language now renames every space:
+Кітапхана · Библиотека · Library.
+
+**Labels are fitted, not accepted or rejected.** A landmark name is drawn at the
+largest size that fits its room and falls back to the number only below 13px —
+otherwise a room that could hold "LIBRARY" would flip to a bare number the
+moment the reader switched to "БИБЛИОТЕКА".
+
+| Gate | Result |
+|---|---|
+| `svg:author` · `map:build` | 16 + 38 = **54 spaces**, 13 schedulable |
+| `packages/map-data` vitest | 12 passed |
+| `go vet` · `go test -count=1 ./...` | green |
+| `apps/web` vitest · `tsc` · `eslint` | 93 passed · clean · clean |
+| `cmd/seed --reset` | 54 rooms · 432 lessons |
+
+---
+
+# Fix — the served zone is one shape, not a scatter of scraps
+
+Reported: small stray shapes still floating on floor 1. They were the served
+zone coming apart. `ATRIUM-N` was traced as a 238-point contour woven around
+every white structure the plan draws, and the three `TECH-*` blocks were more
+grey islands beside it — so the north read as torn paper rather than one zone.
+
+`ATRIUM-N` is now the band `[0, 0, 600, 442]` clipped to the façade: a single
+solid region with a clean edge. `TECH-N2`, `TECH-N3` and `TECH-S1` are gone —
+they were grey islands standing inside or beside that zone and named nothing a
+visitor would look for. Floor 1 is **13 spaces**, the building **51**.
+
+Contour tracing is right for a room, which has walls; it is wrong for the space
+between rooms, which does not.
+
+| Gate | Result |
+|---|---|
+| `svg:author` · `map:build` | 13 + 38 = **51 spaces**, 13 schedulable |
+| `packages/map-data` vitest | 12 passed |
+| `go vet` · `go test -count=1 ./...` | 6 packages ok |
+| `apps/web` vitest · `tsc` · `eslint` | 93 passed · clean · clean |
+| `cmd/seed --reset` | 51 rooms · 432 lessons |
+
+---
+
+# Fix — the room chips are gone
+
+Reported, plainly: the chips are not needed and they are maddening. They were.
+
+A chip sat on each busy room's label anchor with a progress ring and a
+countdown, directly over the number printed on that room — two labels fighting
+for one spot. The status is already on the plan as the room's own fill (live,
+ending, starting) and in full on the board beside it, so the chip repeated what
+the reader could already see while hiding the one thing only the plan carries:
+which room it is.
+
+`RoomChip.tsx` is deleted, along with `RoomChips`, the `chipRooms` filter and
+`COMPACT_CHIP_WIDTH`. Three e2e specs clicked a chip to open a room; they now
+click the room polygon itself (`[data-room="226"]`), which is the honest target
+anyway, and the visual snapshot no longer masks chips that cannot appear.
+
+The search badge is untouched: it is raised deliberately by a search and points
+at one room, rather than crowding every busy one.
+
+| Gate | Result |
+|---|---|
+| `apps/web` vitest · `tsc` · `eslint` | 93 passed · clean · clean |
+| `packages/map-data` vitest | 12 passed |
+| `go vet` · `go test -count=1 ./...` | 6 packages ok |

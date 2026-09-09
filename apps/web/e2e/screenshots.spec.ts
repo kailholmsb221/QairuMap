@@ -30,7 +30,7 @@ test('02 floor 2 focus with room 226 selected', async ({ page }) => {
   await waitForApp(page);
   await page.getByTestId('floor-tab-2').click();
   await page.waitForTimeout(1200);
-  await page.locator('[data-room-chip="226"]').click();
+  await page.locator('[data-room="226"]').click();
   await page.waitForTimeout(1200);
   await page.screenshot({ path: path.join(OUT, '02-focus-floor-2-room-226.png') });
 });

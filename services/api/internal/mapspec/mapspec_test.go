@@ -45,8 +45,8 @@ func TestLoad(t *testing.T) {
 	require.Equal(t, "Main Academic Building", spec.Name)
 	require.Equal(t, "Asia/Almaty", spec.Timezone)
 	require.Equal(t, []float64{0, 0, 600, 1000}, spec.ViewBox)
-	require.Len(t, spec.Floors, 4)
-	require.Equal(t, 89, spec.RoomCount())
+	require.Len(t, spec.Floors, 2)
+	require.Equal(t, 51, spec.RoomCount())
 
 	f2 := spec.FloorOf(2)
 	require.NotNil(t, f2)

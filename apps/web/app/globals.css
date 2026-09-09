@@ -7,13 +7,13 @@
    ========================================================================== */
 
 :root {
-  --bg: #0b0f17;
-  --bg-elev: #111826;
+  --bg: #10161f;
+  --bg-elev: #171f2b;
   --panel: rgba(255, 255, 255, 0.04);
   --line: rgba(255, 255, 255, 0.08);
   --text: #e6eaf2;
   --text-dim: #8b94a7;
-  --accent: #5eead4;
+  --accent: #4da3f7;
 
   --status-live: #2dd4bf;
   --status-soon: #fbbf24;
@@ -22,19 +22,19 @@
   --status-moved: #a78bfa;
   --status-delayed: #f59e0b;
 
-  --room-free: rgba(255, 255, 255, 0.1);
+  --room-free: #2f80d8;
   --room-live: rgba(45, 212, 191, 0.45);
   --room-ending: rgba(251, 146, 60, 0.45);
   --room-soon: rgba(251, 191, 36, 0.35);
-  --room-service: rgba(255, 255, 255, 0.025);
+  --room-service: #79848f;
 
   --wing-north: rgba(96, 165, 250, 0.06);
   --wing-south: rgba(244, 114, 182, 0.06);
   --wing-core: rgba(134, 239, 172, 0.05);
 
-  --slab: #161e2e;
-  --slab-edge: #0a0e16;
-  --slab-top: rgba(255, 255, 255, 0.12);
+  --slab: #2b313b;
+  --slab-edge: #141922;
+  --slab-top: rgba(255, 255, 255, 0.18);
 
   --font-ui: 'Manrope', 'Inter', 'Segoe UI', system-ui, sans-serif;
   --font-board: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
@@ -83,7 +83,15 @@
   --fill-ending: rgba(251, 146, 60, 0.45);
   --fill-soon: rgba(251, 191, 36, 0.35);
   --fill-free: var(--room-free);
-  --fill-service: rgba(255, 255, 255, 0.025);
+  --fill-void: #1b212b;
+
+  /* wayfinding type drawn inside the plate */
+  --plan-label: #ffffff;
+  --plan-label-dim: rgba(255, 255, 255, 0.72);
+  --plan-zone: rgba(255, 255, 255, 0.13);
+  --fill-service: var(--room-service);
+  --fill-room: var(--room-free);
+  --fill-circulation: #333a45;
 
   color-scheme: dark;
 }
@@ -95,7 +103,7 @@
   --line: rgba(11, 15, 23, 0.12);
   --text: #10151f;
   --text-dim: #5b6478;
-  --accent: #0d9488;
+  --accent: #1f74c8;
 
   --status-live: #0d9488;
   --status-soon: #b45309;
@@ -104,8 +112,15 @@
   --status-moved: #6d28d9;
   --status-delayed: #b45309;
 
-  --room-free: rgba(11, 15, 23, 0.07);
-  --slab: #dbe2ee;
+  --room-free: #2f80d8;
+  --room-service: #97a2ad;
+  --fill-void: #e7ecf4;
+  --fill-room: #2f80d8;
+  --fill-circulation: #aab4c1;
+  --plan-label: #ffffff;
+  --plan-label-dim: rgba(255, 255, 255, 0.8);
+  --plan-zone: rgba(11, 15, 23, 0.14);
+  --slab: #c3ccda;
   --slab-edge: #b6c0d1;
   --slab-top: rgba(11, 15, 23, 0.18);
 
@@ -378,7 +393,7 @@ button {
 
 .floor-svg [data-phase='free'] {
   fill: var(--fill-free);
-  stroke: rgba(255, 255, 255, 0.12);
+  stroke: rgba(255, 255, 255, 0.14);
 }
 
 .floor-svg [data-phase='live'],
@@ -397,15 +412,60 @@ button {
   stroke: rgba(251, 191, 36, 0.7);
 }
 
-.floor-svg [data-phase='service'] {
-  fill: var(--fill-service);
-  stroke: rgba(255, 255, 255, 0.09);
+/* a room without a timetable is still a place you can walk into */
+.floor-svg [data-phase='room'] {
+  fill: var(--fill-room);
+  stroke: rgba(255, 255, 255, 0.14);
 }
 
+/* plant rooms and stair cores — greyed, never a destination */
+.floor-svg [data-phase='service'] {
+  fill: var(--fill-service);
+  stroke: rgba(255, 255, 255, 0.12);
+}
+
+
 .floor-svg [data-phase='void'] {
-  fill: var(--bg);
-  stroke: rgba(255, 255, 255, 0.3);
+  fill: var(--fill-void);
+  stroke: rgba(255, 255, 255, 0.22);
   stroke-dasharray: 4 3;
+}
+
+/* ------------------------------------------------ wayfinding type on a plate
+
+   The plate is turned −90° about Z in the focused view, so every label is
+   counter-rotated by the same amount to read horizontally on screen. */
+
+.plan-label {
+  font-family: var(--font-ui);
+  fill: var(--plan-label);
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+  paint-order: stroke fill;
+  stroke: rgba(0, 0, 0, 0.35);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+.plan-label--code {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.plan-label--name {
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.plan-label--zone {
+  font-size: 46px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  fill: var(--plan-zone);
+  stroke: none;
 }
 
 .room-shape:focus-visible {

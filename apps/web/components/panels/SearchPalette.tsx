@@ -9,6 +9,7 @@ import { applyHighlight, useSearch } from '@/features/search/useSearch';
 import { formatHm } from '@/features/time/derive';
 import { IconArrow, IconSearch } from '@/components/chrome/Icons';
 import { Dialog, DialogContent, DialogOverlay, DialogPortal, DialogTitle } from '@/components/ui/dialog';
+import { useRoomName } from '@/features/rooms/useRoomName';
 
 type Item = {
   key: string;
@@ -21,6 +22,7 @@ type Item = {
 
 export function SearchPalette({ tz }: { tz: string }) {
   const t = useTranslations('search');
+  const roomName = useRoomName();
   const open = useUiStore((s) => s.searchOpen);
   const setOpen = useUiStore((s) => s.setSearchOpen);
   const snapshot = useBoardStore((s) => s.snapshot);
@@ -84,7 +86,7 @@ export function SearchPalette({ tz }: { tz: string }) {
       items: results.rooms.map((r) => ({
         key: `r:${r.id}`,
         code: r.code,
-        title: r.name,
+        title: roomName(r.code, r.name),
         sub: t('roomSub', { floor: r.floor, type: r.type }),
         highlight: { kind: 'room' as const, id: r.code, label: r.code },
       })),

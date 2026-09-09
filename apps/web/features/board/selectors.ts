@@ -91,13 +91,28 @@ export function sessionMatches(s: SessionView, h: Highlight): boolean {
   }
 }
 
-export type HighlightBadge = { kind: 'now' | 'next'; label: string; sub: string; floor: number };
+export type HighlightBadge = {
+  kind: 'now' | 'next' | 'room';
+  label: string;
+  sub: string;
+  floor: number;
+};
 
-/** Rooms the current highlight points at, with the badge the map draws over them. */
+/** What the map knows about a room the schedule never mentions. */
+export type RoomIndex = ReadonlyMap<string, { floor: number; name: string }>;
+
+/**
+ * Rooms the current highlight points at, with the badge the map draws over them.
+ *
+ * `rooms` is what makes a room hit work for a space that never carries a lesson —
+ * the cafe, a restroom, an office. Those are absent from `now`/`next`, so without
+ * it searching for one would light nothing up.
+ */
 export function highlightedRooms(
   snapshot: Snapshot,
   h: Highlight,
   tz: string,
+  rooms?: RoomIndex,
 ): Record<string, HighlightBadge> {
   const out: Record<string, HighlightBadge> = {};
   if (!h) return out;
@@ -118,6 +133,12 @@ export function highlightedRooms(
       sub: `${s.courseCode} ${s.courseTitle}`,
       floor: s.floor,
     };
+  }
+
+  // A room the user searched for is always pointed at, teaching or not.
+  if (h.kind === 'room' && !out[h.id]) {
+    const meta = rooms?.get(h.id);
+    if (meta) out[h.id] = { kind: 'room', label: 'HERE', sub: meta.name, floor: meta.floor };
   }
   return out;
 }

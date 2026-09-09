@@ -4,6 +4,7 @@ import { memo } from 'react';
 import type { MapFloor, RoomLiveState } from '@campuslive/contracts';
 import type { RoomDisplayPhase } from '@/features/board/selectors';
 import { FloorEdge, FloorPlan } from './FloorPlan';
+import { PlanLabels } from './PlanLabels';
 import { RoomShape, type SceneMode } from './RoomShape';
 
 /** The central hall is drawn as a zone, not as a room. */
@@ -23,10 +24,11 @@ export type FloorLayerProps = {
   height: number;
   selected?: string | null;
   highlight?: ReadonlySet<string>;
-  lit?: boolean;
   dots?: boolean;
   interactive?: boolean;
   label: RoomLabeller;
+  /** Print the room numbers. Only ever true for the one plate in focus. */
+  labels?: boolean;
   onSelect?: (code: string) => void;
   onHover?: (code: string | null) => void;
 };
@@ -40,10 +42,10 @@ function Layer({
   height,
   selected,
   highlight,
-  lit,
   dots,
   interactive = true,
   label,
+  labels,
   onSelect,
   onHover,
 }: FloorLayerProps) {
@@ -64,7 +66,7 @@ function Layer({
       overflow="visible"
       aria-hidden={interactive ? undefined : true}
     >
-      <FloorPlan floor={floor} idPrefix={idPrefix} lit={lit} />
+      <FloorPlan floor={floor} idPrefix={idPrefix} />
 
       <g id={`${idPrefix}rooms`}>
         {floor.rooms.map((room) => {
@@ -94,6 +96,9 @@ function Layer({
       </g>
 
       <FloorEdge d={floor.outline} />
+
+      {/* Room numbers only in the flat view — the exploded plates are skewed. */}
+      {labels ? <PlanLabels floor={floor} idPrefix={idPrefix} /> : null}
 
       {dots ? (
         <g id={`${idPrefix}dots`} pointerEvents="none">

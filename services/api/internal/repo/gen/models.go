@@ -290,6 +290,7 @@ type Room struct {
 	Schedulable bool
 	Capacity    *int32
 	Geometry    []byte
+	Aliases     string
 }
 
 type Semester struct {

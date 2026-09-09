@@ -217,9 +217,9 @@ export function Scene({
                   height={fit.height}
                   selected={isFocused ? selectedRoom : null}
                   highlight={highlight}
-                  lit={lit}
                   dots={!focused}
                   interactive={!kiosk && (!focused || isFocused)}
+                  labels={isFocused}
                   label={label}
                   onSelect={onSelectRoom}
                   onHover={onHoverRoom}

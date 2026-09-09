@@ -177,6 +177,8 @@ type Room struct {
 	Floor       int
 	FloorID     uuid.UUID
 	Geometry    Geometry
+	// Aliases are search-only synonyms; nothing renders them.
+	Aliases string
 }
 
 // Teacher is a member of staff.

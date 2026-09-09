@@ -10,12 +10,8 @@ const ROWS: { key: 'live' | 'ending' | 'soon' | 'free' | 'service'; bg: string; 
   },
   { key: 'ending', bg: 'rgba(251,146,60,.55)' },
   { key: 'soon', bg: 'rgba(251,191,36,.45)' },
-  { key: 'free', bg: 'rgba(255,255,255,.12)' },
-  {
-    key: 'service',
-    bg: 'rgba(255,255,255,.04)',
-    extra: { border: '1px solid rgba(255,255,255,.14)' },
-  },
+  { key: 'free', bg: 'var(--fill-room)' },
+  { key: 'service', bg: 'var(--fill-service)' },
 ];
 
 export function Legend() {

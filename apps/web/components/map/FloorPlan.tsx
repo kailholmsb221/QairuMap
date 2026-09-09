@@ -3,7 +3,14 @@
 import { memo } from 'react';
 import type { MapCore, MapFloor } from '@campuslive/contracts';
 
-/** Stairs + elevator glyphs, ported from `coreGlyph()` in `docs/design/src/plan.mjs`. */
+/**
+ * Stairs + elevator glyphs, ported from `coreGlyph()` in `docs/design/src/plan.mjs`.
+ *
+ * Not currently drawn: the cores sit at authoring rectangles rather than at
+ * anything the real floor plans show, so the furniture read as clutter on the
+ * plate. Kept for when the cores are traced from the plans like the rooms.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function CoreGlyph({ core }: { core: MapCore }) {
   const { x, y } = core.bbox;
   const isNorth = core.id === 'core-n';
@@ -76,8 +83,6 @@ function CoreGlyph({ core }: { core: MapCore }) {
 export type FloorPlanProps = {
   floor: MapFloor;
   idPrefix: string;
-  /** After hours the entrances glow amber. */
-  lit?: boolean;
 };
 
 /**
@@ -85,9 +90,8 @@ export type FloorPlanProps = {
  * corridors, cores, entrances and the lit top edge. Memoised — a 1 Hz tick or a
  * phase change must never re-render it.
  */
-function Plan({ floor, idPrefix, lit }: FloorPlanProps) {
+function Plan({ floor, idPrefix }: FloorPlanProps) {
   const zone = (id: string) => floor.zones.find((z) => z.id === id)?.path ?? '';
-  const litFill = lit ? 'rgba(251,191,36,.95)' : 'color-mix(in srgb, var(--accent) 55%, transparent)';
 
   return (
     <>
@@ -118,31 +122,13 @@ function Plan({ floor, idPrefix, lit }: FloorPlanProps) {
         ))}
       </g>
 
-      <g id={`${idPrefix}cores`}>
-        {floor.cores.map((c) => (
-          <CoreGlyph key={c.id} core={c} />
-        ))}
-      </g>
 
-      {floor.number === 1 ? (
-        <g id={`${idPrefix}entrances`}>
-          {floor.entrances.map((e) => (
-            <path key={e.id} id={`${idPrefix}${e.id}`} d={e.path} fill={litFill} />
-          ))}
-          {lit
-            ? floor.entrances.map((e) => (
-                <path
-                  key={`glow-${e.id}`}
-                  d={e.path}
-                  fill="none"
-                  stroke="rgba(251,191,36,.6)"
-                  strokeWidth={14}
-                  opacity={0.5}
-                />
-              ))
-            : null}
-        </g>
-      ) : null}
+      {/*
+        Entrances are not drawn: like the stair cores they sit at authoring
+        rectangles rather than at anything the traced plans mark, so they landed
+        as stray squares on the façade. `floor.entrances` is still in the map
+        data, ready for when the doorways are traced from the plans.
+      */}
     </>
   );
 }

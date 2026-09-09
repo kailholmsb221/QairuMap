@@ -1,10 +1,11 @@
 # @campuslive/map-data
 
 The one geometry artifact for building A. Two floors, 51 spaces, one shared
-`viewBox 0 0 600 1000`.
+`viewBox 0 0 600 1000`, one silhouette per floor.
 
 ```
-scripts/authoring/{geometry,build-svg}.mjs   →  svg/floor-{1,2}.svg
+reference/floor-{1,2}.png  →  segmentation  →  scripts/authoring/traced.json
+scripts/authoring/{traced.json,geometry,build-svg}.mjs   →  svg/floor-{1,2}.svg
 svg/floor-{1,2}.svg  →  scripts/svg2map.ts  →  building-a.json   (committed)
 ```
 
@@ -13,12 +14,14 @@ nothing anywhere else may hard-code room coordinates.
 
 ## The two steps
 
-**`pnpm --filter @campuslive/map-data run svg:author`** regenerates the two SVGs
-from the room tables in `scripts/authoring/geometry.mjs`. Each room is one
-axis-aligned rectangle in viewBox space, clipped to the real building silhouette;
-the corridors are the white gaps left between the rectangles. The generator
-refuses to write if a room clips away to nothing, drops below 26×26, escapes the
-outline, or overlaps a room it should not.
+**`pnpm --filter @campuslive/map-data run svg:author`** regenerates the two SVGs.
+Almost every room is the polygon segmented from the real plan and committed in
+`scripts/authoring/traced.json`; the handful of spaces the plan draws white — the
+lobby, the cafe, the stair cores — fall back to the axis-aligned rectangles in
+`scripts/authoring/geometry.mjs`, clipped to their own floor's silhouette. The
+corridors are the white gaps left between them. The generator refuses to write if
+a space clips away to nothing, drops below 26×26, escapes the outline, or (for the
+fallback rectangles only) overlaps a room it should not.
 
 **`pnpm --filter @campuslive/map-data run build`** (a.k.a. `pnpm map:build`)
 parses the SVGs and writes `building-a.json`, validating it against
@@ -52,13 +55,16 @@ Codes are upper-case alphanumeric with hyphens (`100`, `102A`, `AI-LAB`,
 
 ## Where the geometry comes from
 
-`reference/` holds the two real floor-plan photos, the traced outline
-(`outline-traced.txt`) and `authored-check.png` — the rendered plans beside the
-photos, which is how the placement was verified. Floor 1 is read straight off its
-photo through `x' = 0.37911·x − 68.8`, `y' = 0.37911·y + 16.1`; floor 2's photo is
-drawn at a different orientation, so it is rotated 90° clockwise and mapped
-topologically into the same silhouette. `docs/BUILDING.md` is the authoritative
-room programme.
+`reference/` holds the two real floor-plan renders and `authored-check.png` — each
+generated plate beside the plan it came from, which is how the geometry is
+verified. Both plans are segmented directly: the background is flood-filled from
+the border, the plate is split into fills and wall strokes, the fill mask is
+eroded so doorway gaps stop leaking one room into the next, and the surviving
+cores are grown back so neighbours meet in the middle of the wall. Each floor
+keeps **its own** silhouette; floor 2's plan is drawn 90° clockwise from floor
+1's and is rotated back before both are fitted into the shared box.
+`docs/BUILDING.md` is the authoritative room programme and records the two
+doorway-fused pairs that are cut apart by hand.
 
 ## Consumers
 
