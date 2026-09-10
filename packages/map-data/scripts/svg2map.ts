@@ -73,7 +73,7 @@ const WINGS: readonly Wing[] = ['north', 'south', 'core'];
  * keeps the map, the seed and the board in step.
  */
 const EXPECTED_SCHEDULABLE: Record<number, readonly string[]> = {
-  1: ['100', '101', 'CR'],
+  1: ['100', '101'],
   2: ['200', '201', '204', 'AI-LAB', '219', '222', '223', '224', '226', '226A'],
 };
 

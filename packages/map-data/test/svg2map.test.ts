@@ -11,11 +11,11 @@ const PKG_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /** docs/BUILDING.md — the room programme of the real building. */
 const EXPECTED = {
   totalRooms: 54,
-  totalSchedulable: 13,
+  totalSchedulable: 12,
   perFloor: {
     1: {
       rooms: 16,
-      schedulable: ['100', '101', 'CR'],
+      schedulable: ['100', '101'],
       codes: [
         '100', '101', '102', '102A', '103', 'ATRIUM-N', 'CAFE', 'CINEMA', 'CORE-N1', 'CORE-S1',
         'CR', 'TECH-N2', 'TECH-N3', 'TECH-S1', 'WC-1', 'WC-2',

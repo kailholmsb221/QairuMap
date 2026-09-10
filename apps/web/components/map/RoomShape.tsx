@@ -1,33 +1,18 @@
 'use client';
 
 import { memo } from 'react';
-import type { MapRoom } from '@campuslive/contracts';
-import type { RoomDisplayPhase } from '@/features/board/selectors';
+import type { MapRoom, RoomLiveState } from '@campuslive/contracts';
+import { isPassiveRoom } from '@/lib/room-interaction';
 
 export type SceneMode = 'exploded' | 'focus';
-
-/**
- * How a space with no timetable is painted.
- *
- * Blue is every room a visitor can walk into — the cafe, the library, an office —
- * so they stay as legible as a lecture hall.
- *
- * The rest is the served zone, in two greys because the plan draws it in two:
- * the hall recedes as one dark mass (`zone`) and the structures standing inside
- * it read a shade lighter on top (`service`). Neither is ever labelled — it is
- * what you walk through rather than what you are looking for.
- */
-function quietPhase(code: string): 'zone' | 'service' | 'room' {
-  if (/^ATRIUM/.test(code)) return 'zone';
-  if (/^(TECH|CORE)/.test(code)) return 'service';
-  return 'room';
-}
+export type PhotoPhase = RoomLiveState['phase'] | 'admin' | 'void';
 
 export type RoomShapeProps = {
   room: MapRoom;
-  phase: RoomDisplayPhase;
+  phase: PhotoPhase;
   mode: SceneMode;
   idPrefix: string;
+  maskId: string;
   selected?: boolean;
   highlighted?: boolean;
   dimmed?: boolean;
@@ -38,109 +23,78 @@ export type RoomShapeProps = {
   onHover?: (code: string | null) => void;
 };
 
-/**
- * One room polygon. The fill comes from `data-phase` through CSS variables, so a
- * phase change never rebuilds the path; the glow is a second stroked path, never
- * a filter.
- */
+/** The same photographed contour owns the tint, hit target and focus stroke. */
 function Shape({
-  room,
-  phase,
-  mode,
-  idPrefix,
-  selected,
-  highlighted,
-  dimmed,
-  dimTo = 0.5,
-  ariaLabel,
-  interactive = true,
-  onSelect,
-  onHover,
+  room, phase, mode, idPrefix, maskId, selected, highlighted, dimmed, dimTo = 0.5,
+  ariaLabel, interactive = true, onSelect, onHover,
 }: RoomShapeProps) {
-  const isVoid = room.type === 'void';
-  const dataPhase = isVoid ? 'void' : !room.schedulable ? quietPhase(room.code) : phase;
-  const conflict = phase === 'conflict' && room.schedulable && !isVoid;
-  // Every space answers to a click, not just the teaching ones: the point of the
-  // plan is to find the cafe, a restroom or an office as readily as a lecture
-  // hall. Only the atrium void stays inert — it is a hole, not a room.
-  const canInteract = interactive && !isVoid;
-
+  if (isPassiveRoom(room.code)) {
+    return highlighted ? (
+      <g data-passive-highlight={room.code}>
+        <path d={room.path} fill="none" stroke="var(--accent)" strokeWidth={10}
+          opacity={0.22} pointerEvents="none" />
+        <path d={room.path} fill="none" stroke="var(--accent)" strokeWidth={2.5}
+          pointerEvents="none" />
+      </g>
+    ) : null;
+  }
+  const canInteract = interactive && room.type !== 'void';
+  const color = phase === 'admin' ? '#888888'
+    : phase === 'free' || phase === 'void' ? null : `var(--status-${phase})`;
   return (
-    <g opacity={dimmed ? dimTo : 1} style={{ transition: 'opacity var(--dur-base) var(--ease-out)' }}>
-      <path
-        id={`${idPrefix}room-${room.code}`}
-        className={`room-shape${dataPhase === 'soon' ? ' blink' : ''}`}
-        data-phase={conflict ? 'conflict' : dataPhase}
-        data-type={room.type}
-        data-room={room.code}
-        d={room.path}
-        strokeWidth={1}
-        {...(conflict
-          ? { fill: `url(#${idPrefix}hatch)`, stroke: 'rgba(251,146,60,.75)' }
-          : {})}
-        {...(canInteract
-          ? {
-              role: 'button',
-              tabIndex: 0,
-              'aria-label': ariaLabel,
-              onClick: () => onSelect?.(room.code),
-              onKeyDown: (e: React.KeyboardEvent) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onSelect?.(room.code);
-                }
-              },
-              onMouseEnter: () => onHover?.(room.code),
-              onMouseLeave: () => onHover?.(null),
-              onFocus: () => onHover?.(room.code),
-              onBlur: () => onHover?.(null),
-              style: { cursor: 'pointer' },
-            }
-          : { 'aria-hidden': true, pointerEvents: 'none' as const })}
-      />
-      {room.type === 'void' && room.code === 'VOID-2' ? (
-        <rect
-          x={room.bbox.x + room.bbox.w / 2 - 12}
-          y={room.bbox.y}
-          width={24}
-          height={room.bbox.h}
-          fill="var(--slab)"
-          stroke="rgba(255,255,255,.30)"
-          strokeWidth={1}
-          strokeDasharray="4 3"
-          pointerEvents="none"
-        />
+    <>
+      {color ? (
+        <path data-room-tint={room.code} d={room.path} fill={color}
+          mask={`url(#${maskId})`} className={phase === 'soon' ? 'blink' : undefined}
+          style={{ mixBlendMode: 'color' }} pointerEvents="none" />
       ) : null}
-      {selected || highlighted ? (
-        <>
-          <path
-            d={room.path}
-            fill="none"
-            stroke="var(--accent)"
-            strokeWidth={10}
-            opacity={0.22}
-            pointerEvents="none"
-          />
-          <path
-            d={room.path}
-            fill="none"
-            stroke="var(--accent)"
-            strokeWidth={2.5}
-            pointerEvents="none"
-          />
-        </>
+      {dimmed ? (
+        <path d={room.path} fill="#000000" opacity={1 - dimTo}
+          mask={`url(#${maskId})`} pointerEvents="none" />
       ) : null}
-      {mode === 'focus' && !selected && !highlighted && (phase === 'live' || phase === 'delayed') ? (
+      <g opacity={dimmed ? dimTo : 1} style={{ transition: 'opacity var(--dur-base) var(--ease-out)' }}>
         <path
+          id={`${idPrefix}room-${room.code}`}
+          className="photo-room-hit"
+          data-phase={phase}
+          data-type={room.type}
+          data-room={room.code}
+          data-highlighted={highlighted || undefined}
           d={room.path}
-          fill="none"
-          stroke="var(--status-live)"
-          strokeWidth={6}
-          opacity={0.14}
-          pointerEvents="none"
+          fill="transparent"
+          stroke="transparent"
+          strokeWidth={1}
+          {...(canInteract ? {
+            role: 'button',
+            pointerEvents: 'fill' as const,
+            tabIndex: 0,
+            'aria-label': ariaLabel,
+            'aria-pressed': !!selected,
+            onClick: () => onSelect?.(room.code),
+            onKeyDown: (e: React.KeyboardEvent) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onSelect?.(room.code);
+              }
+            },
+            onMouseEnter: () => onHover?.(room.code),
+            onMouseLeave: () => onHover?.(null),
+            onFocus: () => onHover?.(room.code),
+            onBlur: () => onHover?.(null),
+            style: { cursor: 'pointer' },
+          } : { 'aria-hidden': true, pointerEvents: 'none' as const })}
         />
-      ) : null}
-    </g>
+        {selected || highlighted ? (
+          <>
+            <path d={room.path} fill="none" stroke="var(--accent)" strokeWidth={10} opacity={0.22} pointerEvents="none" />
+            <path d={room.path} fill="none" stroke="var(--accent)" strokeWidth={2.5} pointerEvents="none" />
+          </>
+        ) : null}
+        {mode === 'focus' && !selected && !highlighted && phase === 'live' ? (
+          <path d={room.path} fill="none" stroke="var(--status-live)" strokeWidth={6} opacity={0.14} pointerEvents="none" />
+        ) : null}
+      </g>
+    </>
   );
 }
 

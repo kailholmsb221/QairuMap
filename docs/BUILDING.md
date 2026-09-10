@@ -47,7 +47,7 @@ real arrangement is still readable.
 | `102` | Кітапхана | Library | coworking | south | 60 | нет |
 | `102A` | Кітапхана — оқу залы | Library — Reading Room | coworking | south | 40 | нет |
 | `103` | Медициналық пункт | Medical Room | service | south | 4 | нет |
-| `CR` | Конференц-бөлме (CR) | Conference Room | seminar | south | 24 | **да** |
+| `CR` | Конференц-бөлме (CR) | Conference Room | seminar | south | 24 | нет |
 | `CINEMA` | Кинозал | Cinema | lecture | south | 60 | нет |
 | `WC-1` | Дәретхана | Restrooms | service | south | — | нет |
 | `WC-2` | Дәретхана | Restrooms | service | south | — | нет |
@@ -59,7 +59,11 @@ real arrangement is still readable.
 | `CORE-N1` | Баспалдақ және лифт | Stairs & Lifts | service | core | — | нет |
 | `CORE-S1` | Баспалдақ | Stairs | service | core | — | нет |
 
-Floor 1 schedulable: **`100`, `101`, `CR`** (3).
+Floor 1 schedulable: **`100`, `101`** (2).
+
+The first-floor public facilities `102`, `102A`, `CR`, `CINEMA`, `WC-1` and
+`WC-2` are passive on the map. Migration 0004 retires CR from teaching without
+deleting existing lesson templates; the timeline excludes nonschedulable rooms.
 
 ## Floor 2
 
@@ -109,7 +113,7 @@ each room sits on. That is descriptive; the `wing` column is the contract value.
 
 Floor 2 schedulable: **`200`, `201`, `204`, `AI-LAB`, `219`, `222`, `223`, `224`, `226`, `226A`** (10).
 
-**Total: 54 spaces, 13 schedulable.**
+**Total: 54 spaces, 12 schedulable.**
 
 `210`, `211`, `212`, `215` appear on the plan but are not in the university's
 room list, so they carry a neutral "Кабинет NNN" name. `227`, `228`, `229`, `231` and `232` are

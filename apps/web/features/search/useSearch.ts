@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { SearchResult } from '@campuslive/contracts';
 import { api } from '@/lib/api/client';
 import { useUiStore, type Highlight } from '@/lib/store/uiStore';
+import { isMapSearchableRoom } from '@/lib/room-interaction';
 
 const EMPTY: SearchResult = { teachers: [], groups: [], rooms: [], courses: [] };
 
@@ -25,7 +26,8 @@ export function useSearch(debounceMs = 180) {
     staleTime: 30_000,
   });
 
-  const results = debounced.length >= 1 ? (data ?? EMPTY) : EMPTY;
+  const raw = debounced.length >= 1 ? (data ?? EMPTY) : EMPTY;
+  const results = { ...raw, rooms: raw.rooms.filter((room) => isMapSearchableRoom(room.code)) };
   const total =
     results.teachers.length + results.groups.length + results.rooms.length + results.courses.length;
 

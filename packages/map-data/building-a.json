@@ -300,7 +300,7 @@
           "name": "Conference Room",
           "type": "seminar",
           "wing": "south",
-          "schedulable": true,
+          "schedulable": false,
           "path": "M 267.8 575.3 L 205.2 565.9 L 195 633.4 L 257.7 642.8 Z",
           "bbox": {
             "x": 195,

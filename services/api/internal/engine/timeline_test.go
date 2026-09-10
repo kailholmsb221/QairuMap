@@ -53,6 +53,25 @@ func TestBuildDayTimelineSelectsWeekdayAndParity(t *testing.T) {
 	require.Equal(t, "216", wed[0].Room.Code)
 }
 
+func TestRetiredRoomsKeepTemplatesButDoNotMaterialiseSessions(t *testing.T) {
+	t.Parallel()
+	closed := lesson("retired-cr", "CS201", "Databases", "Teacher", "CR", domain.RoomSeminar, 1, 2, 3, []string{"Group"})
+	closed.Room.Schedulable = false
+	active := lesson("active-101", "CS201", "Databases", "Teacher", "101", domain.RoomLab, 1, 2, 4, []string{"Group"})
+	input := dayInput(tuesday, []domain.Lesson{closed, active}, nil)
+	sessions := engine.BuildDayTimeline(input)
+	require.Len(t, input.Lessons, 2, "existing templates must not be deleted")
+	require.Len(t, sessions, 1)
+	require.Equal(t, "101", sessions[0].Room.Code)
+
+	input.Overrides = []domain.Override{{Kind: domain.OverrideMove, Date: tuesday, LessonID: &active.ID, NewRoom: &closed.Room}}
+	require.Empty(t, engine.BuildDayTimeline(input), "a move cannot put a lesson in a retired room")
+	input.Overrides = []domain.Override{{Kind: domain.OverrideMove, Date: tuesday, LessonID: &closed.ID, NewRoom: &active.Room}}
+	require.Len(t, engine.BuildDayTimeline(input), 2, "an explicit move to a teaching room can recover an old template")
+	input = dayInput(tuesday, nil, []domain.Override{{Kind: domain.OverrideExtra, Date: tuesday, Slot: &closed.Slot, NewRoom: &closed.Room}})
+	require.Empty(t, engine.BuildDayTimeline(input), "one-off lessons cannot bypass retirement")
+}
+
 func TestBuildDayTimelineSessionIdentityAndTimes(t *testing.T) {
 	t.Parallel()
 

@@ -70,12 +70,18 @@ func BuildDayTimeline(in DayInput) []domain.Session {
 			Status:    domain.StatusScheduled,
 		}
 		applyOverrides(&s, byLesson[lesson.ID])
+		if !s.Room.Schedulable {
+			continue
+		}
 		sessions = append(sessions, s)
 	}
 
 	// `extra` overrides are one-off sessions with no lesson template.
 	for _, ov := range in.Overrides {
 		if ov.Kind != domain.OverrideExtra || !ov.Date.Equal(in.Date) || ov.Slot == nil || ov.NewRoom == nil {
+			continue
+		}
+		if !ov.NewRoom.Schedulable {
 			continue
 		}
 		start := localToUTC(in.Date, ov.Slot.StartsAt, loc)

@@ -21,7 +21,7 @@ PROGRAMME = {
         '102':      ('Library',                'coworking', 'south', 60,   False),
         '102A':     ('Library — Reading Room', 'coworking', 'south', 40, False),
         '103':      ('Medical Room',           'service',   'south', 4,    False),
-        'CR':       ('Conference Room',        'seminar',   'south', 24,   True),
+        'CR':       ('Conference Room',        'seminar',   'south', 24,   False),
         'CINEMA':   ('Cinema',                 'lecture',   'south', 60,   False),
         'WC-1':     ('Restrooms',              'service',   'south', None, False),
         'WC-2':     ('Restrooms',              'service',   'south', None, False),

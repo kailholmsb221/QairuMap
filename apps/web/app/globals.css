@@ -480,6 +480,7 @@ button {
   stroke: none;
 }
 
+.photo-room-hit:focus-visible,
 .room-shape:focus-visible {
   outline: none;
   stroke: var(--accent);

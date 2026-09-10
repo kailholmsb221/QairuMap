@@ -1,5 +1,19 @@
 # CampusLive — status
 
+## Photo Map Update (2026-09-10)
+
+The two supplied photographs now sit on the original animated 2.5D slabs.
+Search, focus, room details, two floors and live schedule integration remain;
+only presentation geometry and protected room coloring changed. The exterior
+photo background is clipped, with original captions shown only in focus.
+See [the verification record](screenshots/photo-map/README.md) for source-scale
+50% overlays, actual application screenshots and the focused regression tests.
+
+Follow-up: replaced the low-resolution first-floor image with the supplied HD
+source (lossless rotation to 1448x1086). Libraries 102/102A, CR, Cinema and the
+first-floor WCs are passive on the map. CR is no longer schedulable; its existing
+44 lesson templates were preserved but excluded from the active timeline.
+
 **All ten phases (0–9) are complete, and the project has since been rebuilt
 around the university's real building.** The stack builds, seeds, runs and is
 covered end to end; `README.md` has the screenshots and the run instructions.

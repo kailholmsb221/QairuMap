@@ -25,7 +25,7 @@ test('searching a group highlights its room and filters the board', async ({ pag
   // 101 keeps its accent stroke, every other room drops to .35
   await expect(page.locator('#f1-room-101')).toBeVisible();
   const dimmed = await page.evaluate(() => {
-    const other = document.querySelector('#f1-room-CR');
+    const other = document.querySelector('#f1-room-100');
     const group = other?.closest('g');
     return group?.getAttribute('opacity');
   });

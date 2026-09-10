@@ -195,4 +195,6 @@ docs                  ARCHITECTURE.md, STATUS.md, design export, screenshots, pr
 
 ## Credits
 
+**Автор: Ашимхан Алихан.**
+
 The building silhouette, wing zoning and circulation cores are traced from the real architectural plans of floors 1 and 2. Every room name, teacher, group and course inside it is invented — this is a portfolio demo, not a live university system.

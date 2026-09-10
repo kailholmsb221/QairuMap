@@ -630,6 +630,9 @@ func (s *Server) CreateOverride(ctx context.Context, request CreateOverrideReque
 			}
 			return nil, err
 		}
+		if !room.Schedulable {
+			return bad("room " + room.Code + " is not schedulable"), nil
+		}
 		id := room.ID
 		params.NewRoomID = &id
 
@@ -726,6 +729,9 @@ func (s *Server) resolveExtra(ctx context.Context, body OverrideRequest, params 
 			return missing("no such room " + *body.RoomCode), nil
 		}
 		return nil, err
+	}
+	if !room.Schedulable {
+		return bad("room " + room.Code + " is not schedulable"), nil
 	}
 	teacher, err := s.opts.Board.Repo().GetTeacher(ctx, *body.TeacherId)
 	if err != nil {

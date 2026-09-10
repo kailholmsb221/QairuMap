@@ -253,7 +253,6 @@ var roomCatalogue = []struct {
 	{"224", []string{"IP1302", "AIF1303", "HK1105", "FC1301", "ICT1103"}},
 
 	// Seminar rooms.
-	{"CR", []string{"FC1301", "HK1105", "IP1302"}},
 	{"201", []string{"HK1105", "FC1301", "ICT1103"}},
 
 	// Laboratories.
@@ -323,8 +322,6 @@ var heroLessons = []fixedLesson{
 		[]string{"Группа 11"}},
 	{"hero-101", "AIF1303", "Преподаватель 2", "101", 2, 3, 1, domain.LessonLab,
 		[]string{"Группа 13"}},
-	{"hero-cr", "FC1301", "Преподаватель 5", "CR", 2, 3, 1, domain.LessonPractice,
-		[]string{"Группа 14"}},
 	// Delayed by 15 minutes → 10:15–11:05, still `live` at 10:47.
 	{"hero-204-delayed", "AIF1303", "Преподаватель 3", "204", 2, 3, 1, domain.LessonLab,
 		[]string{"Группа 15"}},

@@ -31,7 +31,7 @@ func TestContractReferenceData(t *testing.T) {
 			require.Contains(t, []int{1, 2}, int(r.Floor))
 		}
 		require.ElementsMatch(t, []string{
-			"100", "101", "CR",
+			"100", "101",
 			"200", "201", "204", "AI-LAB", "219", "222", "223", "224", "226", "226A",
 		}, schedulable)
 

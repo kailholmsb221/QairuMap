@@ -382,7 +382,7 @@ func (g *generator) add(key string, weekday, slot, span int, courseCode, teacher
 		return false
 	}
 	room, ok := g.roomByCode[roomCode]
-	if !ok {
+	if !ok || !room.Schedulable {
 		return false
 	}
 	slotRec, ok := g.slotByIdx[slot]

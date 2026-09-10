@@ -9,11 +9,13 @@
   "exports": {
     ".": "./src/index.ts",
     "./building-a.json": "./building-a.json",
+    "./photo-map.json": "./photo-map.json",
     "./schema.json": "./schema.json"
   },
   "files": [
     "README.md",
     "building-a.json",
+    "photo-map.json",
     "schema.json",
     "src",
     "svg"
@@ -22,6 +24,7 @@
     "build": "tsx scripts/svg2map.ts",
     "svg:author": "python scripts/authoring/build_svg.py",
     "svg:check": "python scripts/authoring/check.py",
+    "photo:build": "python scripts/photo_map.py",
     "map:build": "pnpm run build",
     "test": "vitest run",
     "test:watch": "vitest",

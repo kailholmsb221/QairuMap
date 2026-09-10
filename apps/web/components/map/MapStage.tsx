@@ -13,6 +13,8 @@ import {
 import { formatHm } from '@/features/time/derive';
 import { useBoardStore } from '@/lib/store/boardStore';
 import { useUiStore } from '@/lib/store/uiStore';
+import { withPhotoGeometry } from '@/lib/photo-map';
+import { isMapSearchableRoom } from '@/lib/room-interaction';
 import {
   eastMost,
   samplePath,
@@ -35,7 +37,8 @@ export type MapStageProps = {
   lit?: boolean;
 };
 
-export function MapStage({ spec, tz, kiosk = false, lit = false }: MapStageProps) {
+export function MapStage({ spec: inputSpec, tz, kiosk = false, lit = false }: MapStageProps) {
+  const spec = useMemo(() => withPhotoGeometry(inputSpec), [inputSpec]);
   const t = useTranslations('map');
   const roomName = useRoomName();
   const hostRef = useRef<HTMLElement>(null);
@@ -91,7 +94,8 @@ export function MapStage({ spec, tz, kiosk = false, lit = false }: MapStageProps
   }, [spec.floors, roomName]);
 
   const badges = useMemo(
-    () => highlightedRooms(snapshot, highlight, tz, roomIndex),
+    () => Object.fromEntries(Object.entries(highlightedRooms(snapshot, highlight, tz, roomIndex))
+      .filter(([code]) => isMapSearchableRoom(code))),
     [snapshot, highlight, tz, roomIndex],
   );
   const highlightSet = useMemo(() => new Set(Object.keys(badges)), [badges]);
@@ -221,20 +225,25 @@ export function MapStage({ spec, tz, kiosk = false, lit = false }: MapStageProps
             : null}
 
           {/* search badges */}
-          {focusedFloor == null && fits
+          {fits
             ? Object.entries(badges).map(([code, info]) => {
                 const idx = spec.floors.findIndex((f) => f.number === info.floor);
                 const room = spec.floors[idx]?.rooms.find((r) => r.code === code);
                 if (!room) return null;
-                const p = fits.exploded.project(room.label.x, room.label.y, idx);
+                if (focusedFloor != null && info.floor !== focusedFloor) return null;
+                const p = focusedFloor == null
+                  ? fits.exploded.project(room.label.x, room.label.y, idx)
+                  : fits.focus.toScreen(room.label.x, room.label.y);
+                const badgeX = focusedFloor == null ? size.w / 2 + p[0] : p[0];
+                const badgeY = focusedFloor == null ? size.h / 2 + p[1] : p[1];
                 return (
                   <div
                     key={code}
                     data-testid={`map-badge-${code}`}
                     style={{
                       position: 'absolute',
-                      left: Math.round(size.w / 2 + p[0]),
-                      top: Math.round(size.h / 2 + p[1]),
+                      left: Math.round(badgeX),
+                      top: Math.round(badgeY),
                       transform: 'translate(-50%,-100%)',
                       display: 'flex',
                       flexDirection: 'column',

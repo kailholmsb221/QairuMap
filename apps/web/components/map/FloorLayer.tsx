@@ -3,8 +3,8 @@
 import { memo } from 'react';
 import type { MapFloor, RoomLiveState } from '@campuslive/contracts';
 import type { RoomDisplayPhase } from '@/features/board/selectors';
-import { FloorEdge, FloorPlan } from './FloorPlan';
-import { PlanLabels } from './PlanLabels';
+import { photoFloors, photoPhase } from '@/lib/photo-map';
+import { isPassiveRoom } from '@/lib/room-interaction';
 import { RoomShape, type SceneMode } from './RoomShape';
 
 export type RoomLabeller = (
@@ -32,7 +32,6 @@ export type FloorLayerProps = {
 
 function Layer({
   floor,
-  phases,
   states,
   mode,
   width,
@@ -47,13 +46,16 @@ function Layer({
   onHover,
 }: FloorLayerProps) {
   const idPrefix = `f${floor.number}-`;
+  const photo = photoFloors[floor.number];
+  if (!photo) return null;
+  const maskId = `${idPrefix}photo-ink`;
   const hl = highlight ?? new Set<string>();
   const dimOthers = hl.size > 0 || !!selected;
   const dimTo = hl.size > 0 ? 0.35 : 0.5;
 
   return (
     <svg
-      className="floor-svg"
+      className="photo-floor-svg"
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 600 1000"
       width={width}
@@ -62,12 +64,25 @@ function Layer({
       data-building="A"
       overflow="visible"
       aria-hidden={interactive ? undefined : true}
+      style={{ isolation: 'isolate', display: 'block' }}
     >
-      <FloorPlan floor={floor} idPrefix={idPrefix} />
+      <defs>
+        <clipPath id={`${idPrefix}photo-outline`}><path d={floor.outline} /></clipPath>
+        <mask id={maskId} maskUnits="userSpaceOnUse" x={0} y={0} width={600} height={1000} style={{ maskType: 'luminance' }}>
+          <image href={labels ? photo.mask : photo.distantMask} width={photo.width} height={photo.height} transform={photo.transform} />
+        </mask>
+      </defs>
+      <g clipPath={`url(#${idPrefix}photo-outline)`} pointerEvents="none">
+        <image data-testid={`floor-texture-${floor.number}`} href={photo.distantImage}
+          width={photo.width} height={photo.height} transform={photo.transform} />
+        <image data-testid={`floor-captions-${floor.number}`} href={photo.image}
+          width={photo.width} height={photo.height} transform={photo.transform}
+          opacity={labels ? 1 : 0} style={{ transition: 'opacity var(--dur-base) var(--ease-out)' }} />
+      </g>
 
       <g id={`${idPrefix}rooms`}>
         {floor.rooms.map((room) => {
-          const phase = phases[room.code] ?? 'free';
+          const phase = photoPhase(room, states[room.code]);
           const isSel = selected === room.code;
           const isHl = hl.has(room.code);
           return (
@@ -77,6 +92,7 @@ function Layer({
               phase={phase}
               mode={mode}
               idPrefix={idPrefix}
+              maskId={maskId}
               selected={isSel}
               highlighted={isHl}
               dimmed={dimOthers && !isSel && !isHl}
@@ -90,16 +106,11 @@ function Layer({
         })}
       </g>
 
-      <FloorEdge d={floor.outline} />
-
-      {/* Room numbers only in the flat view — the exploded plates are skewed. */}
-      {labels ? <PlanLabels floor={floor} idPrefix={idPrefix} /> : null}
-
       {dots ? (
         <g id={`${idPrefix}dots`} pointerEvents="none">
           {floor.rooms.map((room) => {
-            const phase = phases[room.code];
-            if (!room.schedulable || !phase || phase === 'free') return null;
+            const phase = states[room.code]?.phase;
+            if (isPassiveRoom(room.code) || !room.schedulable || !phase || phase === 'free') return null;
             const colour =
               phase === 'ending'
                 ? 'var(--status-ending)'

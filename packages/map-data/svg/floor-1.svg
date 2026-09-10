@@ -54,7 +54,7 @@
     <path id="room-102" data-name="Library" data-type="coworking" data-wing="south" data-capacity="60" data-schedulable="false" d="M 260.3 779.7 L 243.4 772.2 L 202.3 864.9 L 205.9 866.7 L 230 882 L 239.4 888.8 L 289.2 910.8 L 323.6 833.1 L 250.9 800.8 Z"/>
     <path id="room-102A" data-name="Library — Reading Room" data-type="coworking" data-wing="south" data-capacity="40" data-schedulable="false" d="M 368.6 824.7 L 263 779.8 L 254.2 800.4 L 326.2 831 L 287.2 922.8 L 305.5 935.8 L 407.5 979.1 L 412 979.1 L 430.8 976.1 L 439.7 973.1 L 448.1 969 L 463.4 957.8 L 492.1 900 L 360.4 844.1 Z"/>
     <path id="room-103" data-name="Medical Room" data-type="service" data-wing="south" data-capacity="4" data-schedulable="false" d="M 477.6 713.8 L 443.8 841.7 L 399.8 830.1 L 391.3 862.3 L 499.6 890.9 L 538.8 742.4 L 540.9 730.5 Z"/>
-    <path id="room-CR" data-name="Conference Room" data-type="seminar" data-wing="south" data-capacity="24" data-schedulable="true" d="M 267.8 575.3 L 205.2 565.9 L 195 633.4 L 257.7 642.8 Z"/>
+    <path id="room-CR" data-name="Conference Room" data-type="seminar" data-wing="south" data-capacity="24" data-schedulable="false" d="M 267.8 575.3 L 205.2 565.9 L 195 633.4 L 257.7 642.8 Z"/>
     <path id="room-CINEMA" data-name="Cinema" data-type="lecture" data-wing="south" data-capacity="60" data-schedulable="false" d="M 259.7 647.3 L 197.4 634.8 L 179.9 722.6 L 242.2 735.1 Z"/>
     <path id="room-WC-1" data-name="Restrooms" data-type="service" data-wing="south" data-schedulable="false" d="M 364.9 585.7 L 299.5 573.4 L 283.8 657.3 L 349.2 669.5 Z"/>
     <path id="room-WC-2" data-name="Restrooms" data-type="service" data-wing="south" data-schedulable="false" d="M 352.5 673.6 L 288.6 659.6 L 267.9 754.3 L 331.7 768.3 Z"/>

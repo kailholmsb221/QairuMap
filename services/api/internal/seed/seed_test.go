@@ -15,7 +15,7 @@ import (
 
 // The thirteen rooms that can hold a class — docs/BUILDING.md.
 var schedulableCodes = []string{
-	"100", "101", "CR",
+	"100", "101",
 	"200", "201", "204", "AI-LAB", "219", "222", "223", "224", "226", "226A",
 }
 
@@ -182,7 +182,6 @@ func TestGenerateHeroLessons(t *testing.T) {
 		{"AIF1303", "Преподаватель 1", "AI-LAB", 3, 1, []string{"Группа 10"}},
 		{"ICT1103", "Преподаватель 10", "222", 3, 1, []string{"Группа 11"}},
 		{"AIF1303", "Преподаватель 2", "101", 3, 1, []string{"Группа 13"}},
-		{"FC1301", "Преподаватель 5", "CR", 3, 1, []string{"Группа 14"}},
 		{"AIF1303", "Преподаватель 3", "204", 3, 1, []string{"Группа 15"}},
 		{"ICT1103", "Преподаватель 10", "223", 4, 1, []string{"Группа 16"}},
 		{"AIF1303", "Преподаватель 1", "226A", 4, 1, []string{"Группа 17"}},
@@ -344,7 +343,7 @@ func TestGenerateOccupancy(t *testing.T) {
 	// The demo instant: Tuesday slot 3 (10:00) fills ten of the thirteen rooms.
 	tuesday10 := len(busy[[2]int{2, 3}])
 	t.Logf("Tuesday 10:00: %d of %d rooms busy", tuesday10, schedulable)
-	require.GreaterOrEqual(t, tuesday10, 10)
+	require.GreaterOrEqual(t, tuesday10, 9)
 }
 
 // Every weekday of the seeded fortnight carries two cancellations, one move and

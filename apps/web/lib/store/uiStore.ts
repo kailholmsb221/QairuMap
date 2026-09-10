@@ -2,6 +2,7 @@
 
 import type { LessonType } from '@campuslive/contracts';
 import { createBoundStore } from './create';
+import { isMapSearchableRoom, isPassiveRoom } from '@/lib/room-interaction';
 
 export type Locale = 'ru' | 'kk' | 'en';
 export type HighlightKind = 'group' | 'teacher' | 'room' | 'course';
@@ -54,9 +55,11 @@ export const useUiStore = createBoundStore<UiState>((set) => ({
       // leaving focus drops the selection with it
       selectedRoomCode: focusedFloor === null ? null : s.selectedRoomCode,
     })),
-  selectRoom: (selectedRoomCode) => set({ selectedRoomCode }),
-  hoverRoom: (hoveredRoomCode) => set({ hoveredRoomCode }),
-  setHighlight: (highlight) => set({ highlight }),
+  selectRoom: (selectedRoomCode) => set({ selectedRoomCode: selectedRoomCode && isPassiveRoom(selectedRoomCode) ? null : selectedRoomCode }),
+  hoverRoom: (hoveredRoomCode) => set({ hoveredRoomCode: hoveredRoomCode && isPassiveRoom(hoveredRoomCode) ? null : hoveredRoomCode }),
+  setHighlight: (highlight) => set({
+    highlight: highlight?.kind === 'room' && !isMapSearchableRoom(highlight.id) ? null : highlight,
+  }),
   setFilters: (f) => set((s) => ({ filters: { ...s.filters, ...f } })),
   setLocale: (locale) => set({ locale }),
   setReducedMotion: (reducedMotion) => set({ reducedMotion }),
@@ -64,7 +67,9 @@ export const useUiStore = createBoundStore<UiState>((set) => ({
   setAdminOpen: (adminOpen) => set({ adminOpen }),
   setTravelOpen: (travelOpen) => set({ travelOpen }),
   setCompactTab: (compactTab) => set({ compactTab }),
-  showOnMap: (floor, code) => set({ focusedFloor: floor, selectedRoomCode: code }),
+  showOnMap: (floor, code) => {
+    if (!isPassiveRoom(code)) set({ focusedFloor: floor, selectedRoomCode: code });
+  },
 }));
 
 export const selectFocusedFloor = (s: UiState) => s.focusedFloor;
