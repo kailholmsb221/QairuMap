@@ -40,7 +40,10 @@ test('the vector plans sit on two animated slabs; walls always, doors and captio
     await expect(svg.locator('.door-leaf').first()).toBeAttached();
     await expect(svg.locator('.stairs')).toHaveCount(2);
     await expect(svg.locator(`#f${floor}-plan-labels`)).toHaveCount(1);
-    await expect(svg.locator(`#f${floor}-space-labels .room-label`).first()).toBeAttached();
+    // numbers only, and only on the rooms the building's list knows: nothing on the unnamed spaces
+    await expect(svg.locator(`#f${floor}-space-labels .room-label`)).toHaveCount(0);
+    await expect(svg.locator(`#f${floor}-plan-labels .room-label`).first()).toBeAttached();
+    expect(await svg.locator(`#f${floor}-plan-labels`).innerText()).not.toMatch(/Hall|Laboratory|Office/);
     // the plan's own look: a cyan glowing façade, light-blue walls, rooms painted by the plan's palette
     await expect(svg.locator('.floor-outline-glow')).toHaveCount(1);
     expect(await svg.locator('.wall-exterior').first().evaluate((el) => getComputedStyle(el).stroke)).toBe('rgb(79, 209, 255)');
@@ -95,8 +98,11 @@ test('a place the plan alone draws can be searched and pointed at', async ({ pag
   await expect(page.getByTestId('map-badge-f1-cowork')).toContainText('Коворкинг');
   await expect(page.locator('[data-space="f1-cowork"][data-highlighted]')).toHaveCount(1);
   await expect(page.locator('#f1-selection .selection-outline')).toHaveCount(1);
-  // a place is not a room: nothing to select, no detail panel
+  // pointed at, the space shows its name; otherwise it never carries a caption
   await focusFloor(page, 1);
+  await expect(page.locator('#f1-space-labels .room-label')).toHaveCount(1);
+  await expect(page.locator('#f1-space-labels .room-label')).toContainText('Коворкинг');
+  // a place is not a room: nothing to select, no detail panel
   await expect(page.getByTestId('room-detail')).toHaveCount(0);
 });
 

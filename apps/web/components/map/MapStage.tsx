@@ -183,7 +183,6 @@ export function MapStage({ spec: inputSpec, tz, kiosk = false, lit = false }: Ma
             stageHeight={size.h}
             focusedFloor={focusedFloor}
             selectedRoom={selectedRoom}
-            hoveredRoom={hoveredRoom}
             highlight={highlightSet}
             lit={lit}
             kiosk={kiosk}

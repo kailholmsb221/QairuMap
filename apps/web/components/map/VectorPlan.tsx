@@ -85,10 +85,9 @@ export type VectorOverProps = {
   /** The focused plate carries the doors, glyphs and captions; the exploded stack only the walls. */
   detail?: boolean;
   highlight?: ReadonlySet<string>;
-  dimmed?: boolean;
 };
 
-function Over({ floor, idPrefix, detail, highlight, dimmed }: VectorOverProps) {
+function Over({ floor, idPrefix, detail, highlight }: VectorOverProps) {
   const hl = highlight ?? new Set<string>();
   return (
     <g id={`${idPrefix}plan-lines`} pointerEvents="none" aria-hidden="true">
@@ -169,8 +168,8 @@ function Over({ floor, idPrefix, detail, highlight, dimmed }: VectorOverProps) {
             })}
           </g>
 
-          {/* 7. the captions of the spaces the API does not know */}
-          <SpaceCaptions spaces={floor.spaces} idPrefix={idPrefix} highlight={hl} dimmed={dimmed} />
+          {/* 7. a space the API does not know is captioned only while it is pointed at */}
+          <SpaceCaptions spaces={floor.spaces} idPrefix={idPrefix} highlight={hl} />
         </>
       ) : null}
     </g>
@@ -183,27 +182,18 @@ function Captions({
   spaces,
   idPrefix,
   highlight,
-  dimmed,
 }: {
   spaces: VectorSpace[];
   idPrefix: string;
   highlight: ReadonlySet<string>;
-  dimmed?: boolean;
 }) {
   return (
     <g id={`${idPrefix}space-labels`} className="labels">
-      {spaces.map((s) => (
-        <PlanCaption
-          key={s.id}
-          number=""
-          name={s.name}
-          bbox={s.bbox}
-          label={s.label}
-          look={s}
-          forceShow={highlight.has(s.id)}
-          dimmed={dimmed && !highlight.has(s.id)}
-        />
-      ))}
+      {spaces.map((s) =>
+        highlight.has(s.id) ? (
+          <PlanCaption key={s.id} text={s.name} bbox={s.bbox} label={s.label} look={s} />
+        ) : null,
+      )}
     </g>
   );
 }

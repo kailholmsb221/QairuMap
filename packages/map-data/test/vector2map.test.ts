@@ -50,7 +50,7 @@ describe('vector2map', () => {
       for (const s of floor.spaces) expect(sources).not.toContain(s.id);
     }
     expect(map.floors['1']!.unmapped).toEqual([]);
-    expect(map.floors['2']!.unmapped).toEqual(['229', '232']);
+    expect(map.floors['2']!.unmapped).toEqual(['227', '228', '229', '231', '232']);
     expect(map.floors['1']!.rooms['102']!.source).toBe('f1-class20b');
     expect(map.floors['1']!.rooms['102A']!.source).toBe('f1-labassist');
     expect(map.floors['2']!.rooms['226']!.source).toBe('f2-226');

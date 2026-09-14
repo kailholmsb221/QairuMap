@@ -29,7 +29,6 @@ export type SceneProps = {
   stageHeight: number;
   focusedFloor: number | null;
   selectedRoom: string | null;
-  hoveredRoom?: string | null;
   highlight: ReadonlySet<string>;
   lit?: boolean;
   kiosk?: boolean;
@@ -49,7 +48,6 @@ export function Scene({
   stageHeight,
   focusedFloor,
   selectedRoom,
-  hoveredRoom,
   highlight,
   lit,
   kiosk,
@@ -218,7 +216,6 @@ export function Scene({
                   width={fit.width}
                   height={fit.height}
                   selected={isFocused ? selectedRoom : null}
-                  hovered={isFocused ? hoveredRoom : null}
                   highlight={highlight}
                   dots={!focused}
                   interactive={!kiosk && (!focused || isFocused)}

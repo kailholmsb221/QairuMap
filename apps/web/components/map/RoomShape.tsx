@@ -3,7 +3,7 @@
 import { memo } from 'react';
 import type { MapRoom } from '@campuslive/contracts';
 import type { RoomDisplayPhase } from '@/features/board/selectors';
-import { planFill } from '@/lib/plan-theme';
+import { planFill, roomStatus } from '@/lib/plan-theme';
 import { isPassiveRoom } from '@/lib/room-interaction';
 import type { VectorLook } from '@/lib/vector-map';
 
@@ -52,8 +52,7 @@ function Shape({
   // hall. The atrium void is a hole, not a room, and the first-floor public
   // facilities are drawn but have no map actions (`room-interaction.ts`).
   const canInteract = interactive && !isVoid && !passive;
-  // a room without a timetable is what the plan says it is, never a live phase
-  const status = room.schedulable ? phase : undefined;
+  const status = isVoid ? undefined : roomStatus(room, phase);
   const cls = [
     'room',
     selected || highlighted ? 'is-selected' : '',
@@ -68,7 +67,7 @@ function Shape({
       id={`${idPrefix}room-${room.code}`}
       className={cls}
       fill={planFill(look, status)}
-      data-phase={status ?? (look.quiet ? 'service' : 'room')}
+      data-phase={isVoid ? 'void' : room.schedulable ? phase : status}
       data-type={room.type}
       data-room={room.code}
       data-passive={passive || undefined}

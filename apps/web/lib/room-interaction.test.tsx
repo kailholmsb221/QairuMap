@@ -24,7 +24,9 @@ it.each(['102', '102A', 'CR', 'CINEMA', 'WC-1', 'WC-2'])('%s is drawn but has no
     expect(markup).toContain('data-passive="true"');
     expect(markup).toContain('pointer-events="none"');
     expect(markup).not.toContain('role="button"');
-    expect(markup).not.toContain(`data-phase="${phase}"`);
+    // a facility is painted "free" whatever the timetable says
+    expect(markup).toContain('data-phase="free"');
+    if (phase !== 'free') expect(markup).not.toContain(`data-phase="${phase}"`);
     expect(markup).toContain('is-dimmed');
   }
   const ui = useUiStore.getState();

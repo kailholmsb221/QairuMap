@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 import { motion } from 'motion/react';
 import type { MapRoom, RoomLiveState } from '@campuslive/contracts';
 import { formatHm } from '@/features/time/derive';
-import { useRoomName } from '@/features/rooms/useRoomName';
+import { bilingualRoomName } from '@/features/rooms/roomNames';
 
 export type RoomTooltipProps = {
   room: MapRoom;
@@ -19,7 +19,6 @@ export type RoomTooltipProps = {
 export function RoomTooltip({ room, state, tz, x, y }: RoomTooltipProps) {
   const t = useTranslations('map');
   const td = useTranslations('detail');
-  const roomName = useRoomName();
   const current = state?.current;
   const upcoming = state?.next;
 
@@ -64,7 +63,7 @@ export function RoomTooltip({ room, state, tz, x, y }: RoomTooltipProps) {
             whiteSpace: 'nowrap',
           }}
         >
-          {roomName(room.code, room.name)}
+          {bilingualRoomName(room.code, room.name)}
           {room.capacity ? ` · ${td('capacity', { n: room.capacity })}` : ''}
         </span>
       </div>

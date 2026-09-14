@@ -24,7 +24,8 @@ describe('vector geometry adapter', () => {
   it('keeps every room the plan has a space for, with its API identity and metadata intact', () => {
     expect(mapped.floors).toHaveLength(2);
     const dropped = Object.values(vectorFloors).flatMap((f) => f.unmapped);
-    expect(dropped).toEqual(['229', '232']);
+    // the inner-core codes the traced plate invented: the building's own list does not number them
+    expect(dropped).toEqual(['227', '228', '229', '231', '232']);
     expect(mapped.floors.flatMap((f) => f.rooms)).toHaveLength(54 - dropped.length);
 
     for (const [index, floor] of mapped.floors.entries()) {

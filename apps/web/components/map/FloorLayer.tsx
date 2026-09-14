@@ -3,7 +3,6 @@
 import { memo, useMemo } from 'react';
 import type { MapFloor, RoomLiveState } from '@campuslive/contracts';
 import type { RoomDisplayPhase } from '@/features/board/selectors';
-import { useRoomName } from '@/features/rooms/useRoomName';
 import { STATUS_COLORS, phaseStatus } from '@/lib/plan-theme';
 import { isPassiveRoom } from '@/lib/room-interaction';
 import { roomLooks, vectorFloors, type VectorLook } from '@/lib/vector-map';
@@ -24,7 +23,6 @@ export type FloorLayerProps = {
   width: number;
   height: number;
   selected?: string | null;
-  hovered?: string | null;
   /** Room codes and space ids to point at. */
   highlight?: ReadonlySet<string>;
   dots?: boolean;
@@ -36,10 +34,22 @@ export type FloorLayerProps = {
   onHover?: (code: string | null) => void;
 };
 
-/** Spaces that carry no number on the plan: the caption is the name alone. */
+/** Plant and circulation carry no caption: what you walk through, not what you look for. */
 const UNNUMBERED = /^(ATRIUM|CORE|TECH|VOID)/;
-/** Restrooms are signed, not numbered — exactly as the plan prints them. */
-const SIGNED: Record<string, string> = { 'WC-1': 'WC', 'WC-2': 'WC', 'WC-N2': 'WC', 'WC-S2': 'WC' };
+/**
+ * What the plate prints for a code, where that is not the code itself — the
+ * signs the plan carries, and the two numbers it prints twice (`102`, `226`).
+ */
+const SIGNED: Record<string, string> = {
+  'WC-1': 'WC', 'WC-2': 'WC', 'WC-N2': 'WC', 'WC-S2': 'WC',
+  '102A': '102', '226A': '226',
+  CAFE: 'Cafe', CINEMA: 'Cinema', 'AI-LAB': 'AI LAB',
+};
+
+/** The caption a room prints, or nothing. */
+export function roomSign(code: string): string {
+  return UNNUMBERED.test(code) ? '' : (SIGNED[code] ?? code);
+}
 
 const FALLBACK_LOOK: VectorLook = { type: 'office' };
 
@@ -57,7 +67,6 @@ function Layer({
   width,
   height,
   selected,
-  hovered,
   highlight,
   dots,
   interactive = true,
@@ -67,7 +76,6 @@ function Layer({
   onHover,
 }: FloorLayerProps) {
   const idPrefix = `f${floor.number}-`;
-  const roomName = useRoomName();
   const looks = useMemo(() => roomLooks(floor.number), [floor.number]);
   const vec = vectorFloors[floor.number];
   if (!vec) return null;
@@ -111,25 +119,20 @@ function Layer({
         ))}
       </g>
 
-      <VectorOver floor={vec} idPrefix={idPrefix} detail={!!labels} highlight={hl} dimmed={dimOthers} />
+      <VectorOver floor={vec} idPrefix={idPrefix} detail={!!labels} highlight={hl} />
 
       {labels ? (
         <g id={`${idPrefix}plan-labels`} className="labels" pointerEvents="none" aria-hidden="true">
-          {floor.rooms.map((room) => {
-            const number = UNNUMBERED.test(room.code) ? '' : (SIGNED[room.code] ?? room.code);
-            return (
-              <PlanCaption
-                key={room.code}
-                number={number}
-                name={roomName(room.code, room.name)}
-                bbox={room.bbox}
-                label={room.label}
-                look={looks[room.code] ?? FALLBACK_LOOK}
-                forceShow={pointed(room.code) || hovered === room.code}
-                dimmed={dimOthers && !pointed(room.code)}
-              />
-            );
-          })}
+          {floor.rooms.map((room) => (
+            <PlanCaption
+              key={room.code}
+              text={roomSign(room.code)}
+              bbox={room.bbox}
+              label={room.label}
+              look={looks[room.code] ?? FALLBACK_LOOK}
+              dimmed={dimOthers && !pointed(room.code)}
+            />
+          ))}
         </g>
       ) : null}
 

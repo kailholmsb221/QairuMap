@@ -62,7 +62,10 @@ const FLOORS = [1, 2] as const;
  * where the traced plate had them.
  *
  * A code with no entry has no space on the new plan; the web adapter leaves it
- * off the plate (it still exists for the API) and the test pins the list.
+ * off the plate (it still exists for the API) and the test pins the list. That
+ * is `227`–`232`: the inner-core rooms the traced plate invented codes for. The
+ * plan draws unnumbered spaces there (an archive, the HR office) and the room
+ * list the building gave us does not number them either, so they stay spaces.
  */
 const ROOM_SOURCES: Record<number, Record<string, string>> = {
   1: {
@@ -112,9 +115,6 @@ const ROOM_SOURCES: Record<number, Record<string, string>> = {
     '225': 'f2-225',
     '226': 'f2-226',
     '226A': 'f2-226u',
-    '227': 'f2-hr',
-    '228': 'room-unknown-f2-01',
-    '231': 'f2-archive',
     'WC-N2': 'f2-wc-w-r',
     'WC-S2': 'f2-wc-m-r',
     'VOID-2': 'f2-void',

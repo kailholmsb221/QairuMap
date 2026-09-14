@@ -14,7 +14,7 @@ import { IconClock, IconClose, IconMap } from '@/components/chrome/Icons';
 import { IconButton } from '@/components/chrome/IconButton';
 import { SplitFlap } from '@/components/board/SplitFlap';
 import { StatusPill } from '@/components/board/StatusPill';
-import { useRoomName } from '@/features/rooms/useRoomName';
+import { roomNames } from '@/features/rooms/roomNames';
 
 function SessionRow({ s, tz, last }: { s: SessionView; tz: string; last: boolean }) {
   const tm = useTranslations('map');
@@ -65,7 +65,6 @@ function SessionRow({ s, tz, last }: { s: SessionView; tz: string; last: boolean
 
 export function RoomDetailPanel({ spec, tz }: { spec: MapSpec; tz: string }) {
   const t = useTranslations('detail');
-  const roomName = useRoomName();
   const code = useUiStore((s) => s.selectedRoomCode);
   const selectRoom = useUiStore((s) => s.selectRoom);
   const showOnMap = useUiStore((s) => s.showOnMap);
@@ -170,9 +169,17 @@ export function RoomDetailPanel({ spec, tz }: { spec: MapSpec; tz: string }) {
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {roomName(found.room.code, found.room.name)}
+                    {roomNames(found.room.code, found.room.name).kk}
                   </span>
                 </div>
+                {roomNames(found.room.code).en && roomNames(found.room.code).en !== roomNames(found.room.code).kk ? (
+                  <span
+                    data-testid="room-detail-name-en"
+                    style={{ fontSize: 'calc(var(--legend-font) + 2px)', fontWeight: 600, color: 'var(--text-dim)' }}
+                  >
+                    {roomNames(found.room.code).en}
+                  </span>
+                ) : null}
                 <span
                   style={{ fontSize: 'calc(var(--legend-font) + 1px)', color: 'var(--text-dim)' }}
                 >

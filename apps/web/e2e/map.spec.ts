@@ -20,6 +20,8 @@ test('floor tab 2 enters focus view and room 226 opens the detail panel', async 
   const panel = page.getByTestId('room-detail');
   await expect(panel).toBeVisible();
   await expect(panel).toContainText('226');
+  // the building's own bilingual list: Kazakh first, English under it
+  await expect(panel).toContainText('Оқу зертханасы');
   await expect(panel).toContainText('Teaching Laboratory');
   await expect(panel).toContainText('IP1302');
   await expect(panel).toContainText('Введение в программирование');

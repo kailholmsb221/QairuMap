@@ -60,12 +60,20 @@ export function phaseStatus(phase: RoomDisplayPhase): PlanStatus {
 
 /**
  * The plan's `roomFill()`: circulation and plant by kind, everything else by
- * status. A room the timetable knows takes its live phase; every other space
- * is what the plan says it is — a service area, or a place (free).
+ * status. Only a room the building's own list numbers carries a status — a
+ * teaching room its live phase, an office or a facility "free" (blue),
+ * administration grey; every space the list does not know is a service area,
+ * so the plate reads the way the photographed plates did: numbered rooms in
+ * colour, the rest quiet.
  */
-export function planFill(look: VectorLook, phase?: RoomDisplayPhase): string {
+export function planFill(look: VectorLook, status?: PlanStatus): string {
   const byType = TYPE_COLORS[look.type];
   if (byType) return byType;
-  if (phase) return STATUS_COLORS[phaseStatus(phase)];
-  return STATUS_COLORS[look.quiet ? 'service' : 'free'];
+  return STATUS_COLORS[status ?? 'service'];
+}
+
+/** The status a room the API knows is painted with. */
+export function roomStatus(room: { type: string; schedulable: boolean }, phase: RoomDisplayPhase): PlanStatus {
+  if (room.type === 'admin') return 'service';
+  return room.schedulable ? phaseStatus(phase) : 'free';
 }

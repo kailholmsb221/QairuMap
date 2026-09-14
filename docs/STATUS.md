@@ -2,6 +2,18 @@
 
 ## Vector Map Update (2026-09-14)
 
+**Third pass.** The plate reads the way the photographed plates did, on the
+vector drawing: only the rooms of the building's own list are captioned —
+number only, large (`102` and `226` printed twice, `Cafe`, `WC`, `CR`,
+`Cinema`, `AI LAB`) — and coloured: teaching rooms by live phase, offices and
+facilities free-blue, administration grey. Every space the list does not know
+is a grey service area with no caption (the whole west half of floor 1), shown
+by name only while a search points at it. The inner-core codes the traced plate
+invented (`227`, `228`, `231`, as well as `229`, `232`) are no longer placed
+on the plan. Room names come from the list in both its languages — the
+tooltip prints «Мәжіліс залы / Assembly Hall», the detail panel Kazakh over
+English (`features/rooms/roomNames.ts`). Legend back to the five statuses.
+
 **Second pass, same day.** The plate now wears the authoring tool's own design,
 one for one (`apps/web/lib/plan-theme.ts` = its `theme.ts`, the plan rules in
 `globals.css` = its stylesheet, `PlanCaption` = its `RoomLabel`): the cyan
