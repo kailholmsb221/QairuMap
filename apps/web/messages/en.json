@@ -135,6 +135,7 @@
     "teachers": "TEACHERS",
     "rooms": "ROOMS",
     "courses": "COURSES",
+    "places": "PLACES",
     "onMap": "ON MAP",
     "hintNav": "↑↓ navigate",
     "hintPick": "↵ highlight on map",

@@ -10,6 +10,7 @@ import { formatHm } from '@/features/time/derive';
 import { IconArrow, IconSearch } from '@/components/chrome/Icons';
 import { Dialog, DialogContent, DialogOverlay, DialogPortal, DialogTitle } from '@/components/ui/dialog';
 import { useRoomName } from '@/features/rooms/useRoomName';
+import { searchPlaces } from '@/lib/vector-map';
 
 type Item = {
   key: string;
@@ -17,6 +18,8 @@ type Item = {
   title: string;
   sub: string;
   tag?: string;
+  /** When the printed code is not unique (places share their floor tag). */
+  testId?: string;
   highlight: Highlight;
 };
 
@@ -26,7 +29,10 @@ export function SearchPalette({ tz }: { tz: string }) {
   const open = useUiStore((s) => s.searchOpen);
   const setOpen = useUiStore((s) => s.setSearchOpen);
   const snapshot = useBoardStore((s) => s.snapshot);
-  const { query, setQuery, results, total, loading } = useSearch();
+  const { query, setQuery, results, total: apiTotal, loading } = useSearch();
+  // the named places the plan alone draws — local, so they answer as you type
+  const places = searchPlaces(query);
+  const total = apiTotal + places.length;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -89,6 +95,17 @@ export function SearchPalette({ tz }: { tz: string }) {
         title: roomName(r.code, r.name),
         sub: t('roomSub', { floor: r.floor, type: r.type }),
         highlight: { kind: 'room' as const, id: r.code, label: r.code },
+      })),
+    },
+    {
+      title: t('places'),
+      items: places.map((p) => ({
+        key: `p:${p.id}`,
+        code: `F${p.floor}`,
+        testId: p.id,
+        title: p.name,
+        sub: t('roomSub', { floor: p.floor, type: p.type }),
+        highlight: { kind: 'room' as const, id: p.id, label: p.name },
       })),
     },
     {
@@ -178,7 +195,7 @@ export function SearchPalette({ tz }: { tz: string }) {
                     <Command.Item
                       key={item.key}
                       value={item.key}
-                      data-testid={`search-item-${item.code}`}
+                      data-testid={`search-item-${item.testId ?? item.code}`}
                       onSelect={() => applyHighlight(item.highlight)}
                     >
                       <span className="mono cl-cmdk-code">{item.code}</span>

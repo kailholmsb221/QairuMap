@@ -8,9 +8,13 @@
 
 export type Point2 = [number, number];
 
-/** Sample an SVG path (`M`/`L`/`Q`/`C`/`Z` only, as `svg2map` emits) into a polygon. */
+/**
+ * Sample an SVG path into a polygon. Absolute `M`/`L`/`Q`/`C`/`A`/`Z` only —
+ * what `svg2map` and `vector2map` emit (the vector plans draw the curved façade
+ * as real arcs).
+ */
 export function samplePath(d: string, seg = 28): Point2[] {
-  const tok = d.match(/[MLQCZ]|-?\d*\.?\d+/g);
+  const tok = d.match(/[MLQCAZ]|-?\d*\.?\d+(?:e-?\d+)?/g);
   const pts: Point2[] = [];
   if (!tok) return pts;
   let i = 0;
@@ -48,6 +52,16 @@ export function samplePath(d: string, seg = 28): Point2[] {
         ]);
       }
       cur = p1;
+    } else if (c === 'A') {
+      const p0 = cur;
+      const rx = Math.abs(num());
+      const ry = Math.abs(num());
+      const phi = rad(num());
+      const large = num() !== 0;
+      const sweep = num() !== 0;
+      const p1: Point2 = [num(), num()];
+      pts.push(...sampleArc(p0, p1, rx, ry, phi, large, sweep, seg));
+      cur = p1;
     }
   }
   if (pts.length > 1) {
@@ -59,6 +73,60 @@ export function samplePath(d: string, seg = 28): Point2[] {
 }
 
 const rad = (a: number) => (a * Math.PI) / 180;
+
+/**
+ * The points of an SVG elliptical arc after its start point, by the endpoint →
+ * centre conversion of the SVG spec (implementation notes, §B.2.4), radii
+ * scaled up when the endpoints are too far apart for them.
+ */
+function sampleArc(
+  p0: Point2,
+  p1: Point2,
+  rx: number,
+  ry: number,
+  phi: number,
+  large: boolean,
+  sweep: boolean,
+  seg: number,
+): Point2[] {
+  if (rx === 0 || ry === 0) return [p1];
+  const cosP = Math.cos(phi);
+  const sinP = Math.sin(phi);
+  const dx = (p0[0] - p1[0]) / 2;
+  const dy = (p0[1] - p1[1]) / 2;
+  const x1 = cosP * dx + sinP * dy;
+  const y1 = -sinP * dx + cosP * dy;
+  const lambda = (x1 * x1) / (rx * rx) + (y1 * y1) / (ry * ry);
+  if (lambda > 1) {
+    rx *= Math.sqrt(lambda);
+    ry *= Math.sqrt(lambda);
+  }
+  const num = rx * rx * ry * ry - rx * rx * y1 * y1 - ry * ry * x1 * x1;
+  const den = rx * rx * y1 * y1 + ry * ry * x1 * x1;
+  const coef = (large === sweep ? -1 : 1) * Math.sqrt(Math.max(0, num / den));
+  const cx1 = (coef * rx * y1) / ry;
+  const cy1 = (-coef * ry * x1) / rx;
+  const cx = cosP * cx1 - sinP * cy1 + (p0[0] + p1[0]) / 2;
+  const cy = sinP * cx1 + cosP * cy1 + (p0[1] + p1[1]) / 2;
+  const angle = (ux: number, uy: number, vx: number, vy: number) => {
+    const sign = ux * vy - uy * vx < 0 ? -1 : 1;
+    const dot = ux * vx + uy * vy;
+    return sign * Math.acos(Math.max(-1, Math.min(1, dot / (Math.hypot(ux, uy) * Math.hypot(vx, vy)))));
+  };
+  const theta1 = angle(1, 0, (x1 - cx1) / rx, (y1 - cy1) / ry);
+  let delta = angle((x1 - cx1) / rx, (y1 - cy1) / ry, (-x1 - cx1) / rx, (-y1 - cy1) / ry);
+  if (!sweep && delta > 0) delta -= 2 * Math.PI;
+  if (sweep && delta < 0) delta += 2 * Math.PI;
+  const out: Point2[] = [];
+  for (let k = 1; k <= seg; k++) {
+    const t = theta1 + (delta * k) / seg;
+    const ex = rx * Math.cos(t);
+    const ey = ry * Math.sin(t);
+    out.push([cosP * ex - sinP * ey + cx, sinP * ex + cosP * ey + cy]);
+  }
+  out[out.length - 1] = p1;
+  return out;
+}
 
 export type ProjectorOptions = {
   /** Scene rotation, degrees. */

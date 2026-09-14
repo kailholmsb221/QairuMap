@@ -1,6 +1,6 @@
 # @campuslive/map-data
 
-The one geometry artifact for building A. Two floors, 54 spaces, one shared
+Two geometry artifacts for building A, both in one shared
 `viewBox 0 0 600 1000`, one silhouette per floor.
 
 ```
@@ -8,10 +8,17 @@ reference/floor-{1,2}.png                       the two real plan renders
   └─ scripts/authoring/{plan,geometry,rooms}.py     trace · straighten · fit
        └─ scripts/authoring/build_svg.py  →  svg/floor-{1,2}.svg
             └─ scripts/svg2map.ts         →  building-a.json   (committed)
+
+vector/floor-{1,2}.json                         the hand-digitised vector plans
+  └─ scripts/vector2map.ts                →  vector-map.json    (committed)
 ```
 
-`building-a.json` is what `apps/web` renders and what `cmd/seed` inserts, so
-nothing anywhere else may hard-code room coordinates.
+**`building-a.json`** is the contract: the 54 spaces of `docs/BUILDING.md` with
+their codes, names, types and schedulability. It is what `cmd/seed` inserts and
+what `GET /buildings/A/map` serves, so nothing anywhere else may hard-code a room.
+
+**`vector-map.json`** is what `apps/web` draws. It carries no identity of its
+own — see [The vector plans](#the-vector-plans) below.
 
 ## The two steps
 
@@ -130,6 +137,49 @@ home, every anchor lands on the plate, no cell is claimed twice, no room is
 narrower than 8 units, no two rooms of a floor overlap, and no room escapes the
 silhouette (the north hall deliberately contains `TECH-N2` and `TECH-N3`, as the
 plan draws them).
+
+## The vector plans
+
+`vector/floor-{1,2}.json` are the two floors as a topological model —
+`points → walls → rooms.boundary`, with real arcs (`bulge`), doors on walls and
+stair / lift / plant zones — digitised by hand from the paper plans in a separate
+authoring tool (the `building-vector-map` Vite app, whose editor is not part of
+this repo). They are the geometry source of truth for what the screen shows;
+edit them in that tool, copy them here, and run
+
+```
+pnpm --filter @campuslive/map-data run vector:build
+```
+
+`scripts/vector2map.ts` reads them and writes `vector-map.json`. The plans are
+drawn in a 1600×1000 landscape frame with the curved façade at the bottom — the
+orientation the focused view already shows — so the script rotates them a quarter
+turn, scales both floors by one factor and centres them on the 600×1000 plate;
+everything downstream stays in plate units. `scripts/vector/geometry.ts` is the
+authoring tool's path construction, ported verbatim. `test/vector2map.test.ts`
+fails when the committed file is stale.
+
+The output has two kinds of thing per floor:
+
+| | what | drawn as |
+|---|---|---|
+| `rooms[code]` | the contract rooms, keyed by `docs/BUILDING.md` code | `RoomShape`: coloured by live phase, clickable, searchable |
+| `spaces[]` | every other space the plan draws (corridors, lift halls, the coworking, the pavilion …) | `VectorPlan`: filled by type, captioned in focus, no status, no panel; the named ones are searchable as *places* |
+
+plus the `walls`, `doors` and `glyphs` (stairs, lifts, `WC` signs, hatched plant
+rooms) of the whole floor.
+
+`ROOM_SOURCES` in `vector2map.ts` says which drawn space carries which code.
+Numbered spaces map by their printed number; the plan prints `102` and `226`
+twice and the larger of each pair is the plain code. The unnumbered service codes
+(cores, `TECH-*`, `ATRIUM-N`) go to the space that stands where the traced plate
+had them. `229` and `232` — two inner-core staff rooms the traced plate showed —
+have no space on the new plan: they are listed in `unmapped`, stay in the
+contract and the database, and are simply not drawn.
+
+Names always come from the contract and its translations, never from the plan:
+where the plan's own caption disagrees (`103` is captioned *Кабинет
+информатики*, `223` *Коворкинг*), the app shows the `docs/BUILDING.md` name.
 
 ## Consumers
 

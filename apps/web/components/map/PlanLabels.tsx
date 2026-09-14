@@ -1,8 +1,9 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import type { MapFloor, MapRoom } from '@campuslive/contracts';
 import { useRoomName } from '@/features/rooms/useRoomName';
+import { roomLabelAngles } from '@/lib/vector-map';
 
 /**
  * The room numbers and landmark names printed on a plate, the way a wayfinding
@@ -57,8 +58,8 @@ const CODE_MIN = 26;
  * screen. Rooms also sit at an angle, so a bounding box overstates the straight
  * run a label really has — hence the margins.
  */
-const across = (room: MapRoom): number => room.bbox.h * 0.72;
-const down = (room: MapRoom): number => room.bbox.w;
+const across = (room: MapRoom, turned: boolean): number => (turned ? room.bbox.w : room.bbox.h) * 0.72;
+const down = (room: MapRoom, turned: boolean): number => (turned ? room.bbox.h : room.bbox.w);
 
 /**
  * The largest size at which `text` still fits the room, or 0 if none does.
@@ -68,9 +69,9 @@ const down = (room: MapRoom): number => room.bbox.w;
  * lengths, and a room that can only take the short one would flip to a bare
  * number the moment the reader switched language.
  */
-function fitSize(text: string, room: MapRoom, max: number, glyph: number): number {
-  const byWidth = across(room) / (text.length * glyph);
-  const byHeight = down(room) / 2.1;
+function fitSize(text: string, room: MapRoom, max: number, glyph: number, turned: boolean): number {
+  const byWidth = across(room, turned) / (text.length * glyph);
+  const byHeight = down(room, turned) / 2.1;
   return Math.floor(Math.min(max, byWidth, byHeight));
 }
 
@@ -78,15 +79,19 @@ export type PlanLabelsProps = { floor: MapFloor; idPrefix: string };
 
 function Labels({ floor, idPrefix }: PlanLabelsProps) {
   const roomName = useRoomName();
+  // a few labels along narrow bays are turned by the plan itself
+  const angles = useMemo(() => roomLabelAngles(floor.number), [floor.number]);
   return (
     <g id={`${idPrefix}plan-labels`} pointerEvents="none" aria-hidden="true">
       {floor.rooms.map((room) => {
         const { x, y } = room.label;
-        const spin = `rotate(90 ${x} ${y})`;
+        const angle = angles[room.code] ?? 0;
+        const turned = Math.abs(angle) === 90;
+        const spin = `rotate(${90 + angle} ${x} ${y})`;
 
         if (LANDMARKS.has(room.code)) {
           const name = roomName(room.code, room.name).toUpperCase();
-          const size = fitSize(name, room, NAME_MAX, GLYPH_NAME);
+          const size = fitSize(name, room, NAME_MAX, GLYPH_NAME, turned);
           if (size >= NAME_MIN) {
             return (
               <text
@@ -106,7 +111,7 @@ function Labels({ floor, idPrefix }: PlanLabelsProps) {
         if (UNNUMBERED.test(room.code)) return null;
         const text = SIGNED[room.code] ?? room.code;
         if (Math.min(room.bbox.w, room.bbox.h) < CODE_MIN) return null;
-        if (fitSize(text, room, CODE_SIZE, GLYPH_CODE) < CODE_SIZE) return null;
+        if (fitSize(text, room, CODE_SIZE, GLYPH_CODE, turned) < CODE_SIZE) return null;
 
         return (
           <text

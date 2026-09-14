@@ -13,7 +13,7 @@ import {
 import { formatHm } from '@/features/time/derive';
 import { useBoardStore } from '@/lib/store/boardStore';
 import { useUiStore } from '@/lib/store/uiStore';
-import { withPhotoGeometry } from '@/lib/photo-map';
+import { listPlaces, placeById, withVectorGeometry } from '@/lib/vector-map';
 import { isMapSearchableRoom } from '@/lib/room-interaction';
 import {
   eastMost,
@@ -38,7 +38,7 @@ export type MapStageProps = {
 };
 
 export function MapStage({ spec: inputSpec, tz, kiosk = false, lit = false }: MapStageProps) {
-  const spec = useMemo(() => withPhotoGeometry(inputSpec), [inputSpec]);
+  const spec = useMemo(() => withVectorGeometry(inputSpec), [inputSpec]);
   const t = useTranslations('map');
   const roomName = useRoomName();
   const hostRef = useRef<HTMLElement>(null);
@@ -84,12 +84,16 @@ export function MapStage({ spec: inputSpec, tz, kiosk = false, lit = false }: Ma
     return out;
   }, [snapshot, spec.floors]);
 
-  /** Every space on the plate, so a hit on one without lessons still resolves. */
+  /**
+   * Every space on the plate, so a hit on one without lessons still resolves —
+   * the rooms the API knows and the named places the plan alone draws.
+   */
   const roomIndex = useMemo(() => {
     const m = new Map<string, { floor: number; name: string }>();
     for (const f of spec.floors) {
       for (const r of f.rooms) m.set(r.code, { floor: f.number, name: roomName(r.code, r.name) });
     }
+    for (const p of listPlaces()) m.set(p.id, { floor: p.floor, name: p.name });
     return m;
   }, [spec.floors, roomName]);
 
@@ -229,11 +233,13 @@ export function MapStage({ spec: inputSpec, tz, kiosk = false, lit = false }: Ma
             ? Object.entries(badges).map(([code, info]) => {
                 const idx = spec.floors.findIndex((f) => f.number === info.floor);
                 const room = spec.floors[idx]?.rooms.find((r) => r.code === code);
-                if (!room) return null;
+                const place = room ? null : placeById(code);
+                const anchor = room?.label ?? place?.label;
+                if (!anchor) return null;
                 if (focusedFloor != null && info.floor !== focusedFloor) return null;
                 const p = focusedFloor == null
-                  ? fits.exploded.project(room.label.x, room.label.y, idx)
-                  : fits.focus.toScreen(room.label.x, room.label.y);
+                  ? fits.exploded.project(anchor.x, anchor.y, idx)
+                  : fits.focus.toScreen(anchor.x, anchor.y);
                 const badgeX = focusedFloor == null ? size.w / 2 + p[0] : p[0];
                 const badgeY = focusedFloor == null ? size.h / 2 + p[1] : p[1];
                 return (
@@ -271,7 +277,7 @@ export function MapStage({ spec: inputSpec, tz, kiosk = false, lit = false }: Ma
                           color: 'var(--text)',
                         }}
                       >
-                        {code}
+                        {place ? place.name : code}
                       </span>
                       <span
                         className="mono"
@@ -289,9 +295,11 @@ export function MapStage({ spec: inputSpec, tz, kiosk = false, lit = false }: Ma
                       >
                         {info.label}
                       </span>
-                      <span style={{ fontSize: 'var(--legend-font)', color: 'var(--text-dim)' }}>
-                        {info.sub}
-                      </span>
+                      {place ? null : (
+                        <span style={{ fontSize: 'var(--legend-font)', color: 'var(--text-dim)' }}>
+                          {info.sub}
+                        </span>
+                      )}
                     </div>
                     <span
                       style={{

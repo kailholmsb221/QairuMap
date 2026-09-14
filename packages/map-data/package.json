@@ -2,7 +2,7 @@
   "name": "@campuslive/map-data",
   "version": "1.0.0",
   "private": true,
-  "description": "Floor geometry pipeline: svg/floor-{1,2}.svg \u2192 building-a.json (MapSpec)",
+  "description": "Floor geometry pipeline: svg/floor-{1,2}.svg → building-a.json (MapSpec); vector/floor-{1,2}.json → vector-map.json (presentation)",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -10,18 +10,22 @@
     ".": "./src/index.ts",
     "./building-a.json": "./building-a.json",
     "./photo-map.json": "./photo-map.json",
-    "./schema.json": "./schema.json"
+    "./schema.json": "./schema.json",
+    "./vector-map.json": "./vector-map.json"
   },
   "files": [
     "README.md",
     "building-a.json",
     "photo-map.json",
+    "vector-map.json",
     "schema.json",
     "src",
-    "svg"
+    "svg",
+    "vector"
   ],
   "scripts": {
     "build": "tsx scripts/svg2map.ts",
+    "vector:build": "tsx scripts/vector2map.ts",
     "svg:author": "python scripts/authoring/build_svg.py",
     "svg:check": "python scripts/authoring/check.py",
     "photo:build": "python scripts/photo_map.py",

@@ -1,5 +1,32 @@
 # CampusLive — status
 
+## Vector Map Update (2026-09-14)
+
+The two photographed plates are replaced by the hand-digitised **vector plans**
+(`packages/map-data/vector/floor-{1,2}.json`, built into `vector-map.json` by
+`vector2map.ts`). The 2.5D scene, the exploded stack, focus, parallax, search,
+highlight, room details and live schedule integration are unchanged — the plans
+are rotated and scaled into the same 600×1000 plate the scene has always
+projected, so `Scene`, `map-geometry` and every projection stayed as they were.
+
+What is new on the plate: real walls, doors with their swing, stair flights,
+lift shafts, `WC` signs and hatched plant rooms; ~100 named spaces the API does
+not know (corridors, lift halls, the coworking, the pavilion …) drawn by type and
+captioned in focus; a **Places** group in the ⌘K palette that finds those spaces
+by name and points at them with a `HERE` badge. Room identity is untouched: the
+54 codes, names, types and schedulability still come from `docs/BUILDING.md` /
+`building-a.json` and the database; the plan only lends each code its contour
+(`ROOM_SOURCES` in `vector2map.ts`). `229` and `232` have no space on the new
+plan and are not drawn (they remain in the contract). `samplePath` learned the
+SVG `A` command, since the façade is now a true arc.
+
+Web code removed: `lib/photo-map.ts` and its tests; `photo-map.json` and the
+PNGs stay in the repo but nothing reads them. Unit tests: 112 web + 16 map-data
+green. `e2e/vector-map.spec.ts` replaces `photo-map.spec.ts` (3/4 green locally;
+the fourth trips on a pre-existing board hydration mismatch when the API runs
+with a moving clock rather than `CLOCK_MODE=fixed`). Visual baselines
+(`visual.spec.ts`, `screenshots.spec.ts`) need `pnpm e2e:update`.
+
 ## Photo Map Update (2026-09-10)
 
 The two supplied photographs now sit on the original animated 2.5D slabs.

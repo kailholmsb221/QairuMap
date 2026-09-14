@@ -97,6 +97,23 @@
   --fill-circulation: rgba(255, 255, 255, 0.05);
   --line-circulation: rgba(255, 255, 255, 0.16);
 
+  /* the vector plan: the spaces the API does not know, its walls and fittings */
+  --plan-corridor: #1a2431;
+  --plan-lobby: #232f3f;
+  --plan-service: #2a3646;
+  --plan-storage: #2a3646;
+  --plan-wc: #2b3f57;
+  --plan-stairs: #2b3a4d;
+  --plan-lift: #303f56;
+  --plan-tech: #29323f;
+  --plan-place: #2f5f9a;
+  --plan-wall: rgba(190, 220, 245, 0.55);
+  --plan-wall-exterior: rgba(120, 190, 240, 0.85);
+  --plan-door-leaf: rgba(191, 230, 255, 0.7);
+  --plan-fitting: rgba(185, 217, 240, 0.7);
+  --plan-plant: rgba(107, 140, 174, 0.55);
+  --plan-caption: rgba(230, 240, 250, 0.82);
+
   color-scheme: dark;
 }
 
@@ -135,6 +152,22 @@
   --fill-soon: rgba(180, 83, 9, 0.3);
   --fill-free: rgba(11, 15, 23, 0.07);
   --fill-service: rgba(11, 15, 23, 0.03);
+
+  --plan-corridor: #dde4ee;
+  --plan-lobby: #d3dce9;
+  --plan-service: #c9d3e0;
+  --plan-storage: #c9d3e0;
+  --plan-wc: #c2d2e6;
+  --plan-stairs: #c6d1df;
+  --plan-lift: #bfcbdb;
+  --plan-tech: #cdd5df;
+  --plan-place: #7fb0e8;
+  --plan-wall: rgba(30, 45, 70, 0.55);
+  --plan-wall-exterior: rgba(20, 60, 110, 0.85);
+  --plan-door-leaf: rgba(30, 45, 70, 0.55);
+  --plan-fitting: rgba(30, 45, 70, 0.6);
+  --plan-plant: rgba(60, 85, 115, 0.45);
+  --plan-caption: rgba(16, 21, 31, 0.8);
 
   color-scheme: light;
 }
@@ -443,6 +476,107 @@ button {
   stroke-dasharray: 4 3;
 }
 
+/* the first-floor public facilities: on the plan, not on the timetable */
+.floor-svg [data-passive] {
+  stroke: none;
+}
+
+/* ------------------------------------------------------------- the vector plan
+
+   The spaces the API does not know are filled by what they are — corridor,
+   lift hall, cubicle — in one recessive family; a named place a visitor can
+   look for (the coworking, the pavilion) keeps the blue of a room. Line work is
+   drawn in plate units so it scales with the plate, thin in the stack and
+   legible in focus. */
+
+.plan-space {
+  fill: var(--plan-service);
+  stroke: none;
+}
+
+.plan-space[data-space-type='corridor'] {
+  fill: var(--plan-corridor);
+}
+
+.plan-space[data-space-type='lobby'] {
+  fill: var(--plan-lobby);
+}
+
+.plan-space[data-space-type='storage'] {
+  fill: var(--plan-storage);
+}
+
+.plan-space[data-space-type='wc'] {
+  fill: var(--plan-wc);
+}
+
+.plan-space[data-space-type='stairs'] {
+  fill: var(--plan-stairs);
+}
+
+.plan-space[data-space-type='lift'] {
+  fill: var(--plan-lift);
+}
+
+.plan-space[data-space-type='tech'] {
+  fill: var(--plan-tech);
+}
+
+.plan-space[data-space-type='office'],
+.plan-space[data-space-type='class'],
+.plan-space[data-space-type='hall'],
+.plan-space[data-space-type='cafe'] {
+  fill: var(--plan-place);
+}
+
+.plan-wall {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.plan-wall--interior {
+  stroke: var(--plan-wall);
+  stroke-width: 0.7;
+}
+
+.plan-wall--exterior {
+  stroke: var(--plan-wall-exterior);
+  stroke-width: 1.6;
+}
+
+.plan-door-opening {
+  fill: none;
+  stroke: var(--slab);
+  stroke-width: 3.2;
+  stroke-linecap: butt;
+}
+
+.plan-door-leaf {
+  fill: none;
+  stroke: var(--plan-door-leaf);
+  stroke-width: 0.55;
+}
+
+.plan-stairs,
+.plan-lift {
+  fill: none;
+  stroke: var(--plan-fitting);
+  stroke-width: 0.55;
+}
+
+.plan-stairs-arrow {
+  fill: none;
+  stroke: var(--plan-label);
+  stroke-width: 0.7;
+}
+
+.plan-plant,
+.plan-shaft {
+  stroke: var(--plan-plant);
+  stroke-width: 0.5;
+}
+
 /* ------------------------------------------------ wayfinding type on a plate
 
    The plate is turned −90° about Z in the focused view, so every label is
@@ -480,7 +614,19 @@ button {
   stroke: none;
 }
 
-.photo-room-hit:focus-visible,
+/* the captions of the unnamed spaces and the `WC` signs: quiet, regular weight */
+.plan-label--space,
+.plan-label--sign {
+  font-weight: 500;
+  fill: var(--plan-caption);
+  stroke-width: 1.2;
+}
+
+.plan-label--sign {
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
 .room-shape:focus-visible {
   outline: none;
   stroke: var(--accent);
