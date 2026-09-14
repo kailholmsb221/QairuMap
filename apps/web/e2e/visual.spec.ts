@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { waitForApp } from './helpers';
+import { waitForApp, focusFloor } from './helpers';
 
 // Reduced motion keeps the springs, marquee and split-flap still, so the only
 // moving pixels left are the clock and the countdowns — which are masked.
@@ -21,7 +21,7 @@ test('main screen', async ({ page }) => {
 test('floor 2 focus', async ({ page }) => {
   await page.goto('/');
   await waitForApp(page);
-  await page.getByTestId('floor-tab-2').click();
+  await focusFloor(page, 2);
   await page.getByTestId('board').hover();
   await page.waitForTimeout(1500);
 

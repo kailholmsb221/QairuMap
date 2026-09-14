@@ -1,13 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 import vector from '@campuslive/map-data/vector-map.json' with { type: 'json' };
-import { waitForApp } from './helpers';
+import { focusFloor as enterFocus, openSearch, waitForApp } from './helpers';
 
 const passiveRooms = ['102', '102A', 'CR', 'CINEMA', 'WC-1', 'WC-2'];
 
 async function focusFloor(page: Page, floor: number) {
-  await page.getByTestId(`floor-tab-${floor}`).click();
-  await page.mouse.move(0, 0);
-  await expect(page.getByTestId('scene')).toHaveAttribute('data-mode', 'focus');
+  await enterFocus(page, floor);
   await page.waitForTimeout(1800);
 }
 
@@ -20,8 +18,8 @@ test('the vector plans sit on two animated slabs; walls always, doors and captio
   await expect(page.locator('[data-floor-layer]')).toHaveCount(2);
   for (const floor of [1, 2]) {
     const svg = page.locator(`svg.floor-svg[data-floor="${floor}"]`);
-    await expect(svg.locator('.plan-wall')).toHaveCount(vector.floors[String(floor) as '1' | '2'].walls.length);
-    await expect(svg.locator('.plan-space')).toHaveCount(vector.floors[String(floor) as '1' | '2'].spaces.length);
+    await expect(svg.locator('.wall')).toHaveCount(vector.floors[String(floor) as '1' | '2'].walls.length);
+    await expect(svg.locator('[data-space]')).toHaveCount(vector.floors[String(floor) as '1' | '2'].spaces.length);
     await expect(svg.locator(`#f${floor}-doors`)).toHaveCount(0);
     await expect(svg.locator(`#f${floor}-plan-labels`)).toHaveCount(0);
     expect(await page.locator(`[data-floor-layer="${floor}"]`).evaluate((el) => getComputedStyle(el).transform))
@@ -39,10 +37,14 @@ test('the vector plans sit on two animated slabs; walls always, doors and captio
     await focusFloor(page, floor);
     const svg = page.locator(`svg.floor-svg[data-floor="${floor}"]`);
     await expect(svg.locator(`#f${floor}-doors`)).toHaveCount(1);
-    await expect(svg.locator('.plan-door-leaf').first()).toBeAttached();
-    await expect(svg.locator('.plan-stairs')).toHaveCount(2);
+    await expect(svg.locator('.door-leaf').first()).toBeAttached();
+    await expect(svg.locator('.stairs')).toHaveCount(2);
     await expect(svg.locator(`#f${floor}-plan-labels`)).toHaveCount(1);
-    await expect(svg.locator('.plan-label--space').first()).toBeAttached();
+    await expect(svg.locator(`#f${floor}-space-labels .room-label`).first()).toBeAttached();
+    // the plan's own look: a cyan glowing façade, light-blue walls, rooms painted by the plan's palette
+    await expect(svg.locator('.floor-outline-glow')).toHaveCount(1);
+    expect(await svg.locator('.wall-exterior').first().evaluate((el) => getComputedStyle(el).stroke)).toBe('rgb(79, 209, 255)');
+    expect(await svg.locator(`#f${floor}-room-${floor === 1 ? '100' : '200'}`).getAttribute('fill')).toMatch(/^#[0-9a-f]{6}$/);
     await expect(page.locator(`svg.floor-svg[data-floor="${3 - floor}"] #f${3 - floor}-doors`)).toHaveCount(0);
   }
   await page.keyboard.press('Escape');
@@ -74,16 +76,16 @@ test('every room is hit where its contour is, and the plan-only spaces never tak
       await expect(path).not.toHaveAttribute('role', 'button');
     }
     // a corridor is drawn but is not a target
-    await expect(page.locator(`svg.floor-svg[data-floor="${floor}"] .plan-space[data-space-type="corridor"]`).first())
+    await expect(page.locator(`svg.floor-svg[data-floor="${floor}"] [data-space][data-space-type="corridor"]`).first())
       .toHaveCount(1);
-    await expect(page.locator(`svg.floor-svg[data-floor="${floor}"] .plan-space[role="button"]`)).toHaveCount(0);
+    await expect(page.locator(`svg.floor-svg[data-floor="${floor}"] [data-space][role="button"]`)).toHaveCount(0);
   }
 });
 
 test('a place the plan alone draws can be searched and pointed at', async ({ page }) => {
   await page.goto('/');
   await waitForApp(page);
-  await page.getByTestId('search-trigger').click();
+  await openSearch(page);
   await page.getByTestId('search-input').fill('ковор');
   const hit = page.getByTestId('search-item-f1-cowork');
   await expect(hit).toBeVisible();
@@ -92,6 +94,7 @@ test('a place the plan alone draws can be searched and pointed at', async ({ pag
   await expect(page.getByTestId('map-badge-f1-cowork')).toBeVisible();
   await expect(page.getByTestId('map-badge-f1-cowork')).toContainText('Коворкинг');
   await expect(page.locator('[data-space="f1-cowork"][data-highlighted]')).toHaveCount(1);
+  await expect(page.locator('#f1-selection .selection-outline')).toHaveCount(1);
   // a place is not a room: nothing to select, no detail panel
   await focusFloor(page, 1);
   await expect(page.getByTestId('room-detail')).toHaveCount(0);

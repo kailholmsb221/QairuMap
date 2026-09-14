@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { waitForApp } from './helpers';
+import { waitForApp, openSearch } from './helpers';
 
 test('searching a group highlights its room and filters the board', async ({ page }) => {
   await page.goto('/');
@@ -8,7 +8,7 @@ test('searching a group highlights its room and filters the board', async ({ pag
   const rowsBefore = await page.locator('[data-testid="board"] [data-session]').count();
   expect(rowsBefore).toBeGreaterThan(2);
 
-  await page.getByTestId('search-trigger').click();
+  await openSearch(page);
   await expect(page.getByTestId('search-palette')).toBeVisible();
   await page.getByTestId('search-input').fill('Группа 13');
 

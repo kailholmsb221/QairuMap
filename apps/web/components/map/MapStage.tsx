@@ -165,7 +165,8 @@ export function MapStage({ spec: inputSpec, tz, kiosk = false, lit = false }: Ma
         position: 'relative',
         overflow: 'hidden',
         borderRadius: 'var(--radius)',
-        background: 'var(--panel)',
+        // the plan is drawn on the authoring tool's own dark ground, in both themes
+        background: 'var(--map-bg)',
         border: '1px solid var(--line)',
         minWidth: 0,
         minHeight: 0,
@@ -182,6 +183,7 @@ export function MapStage({ spec: inputSpec, tz, kiosk = false, lit = false }: Ma
             stageHeight={size.h}
             focusedFloor={focusedFloor}
             selectedRoom={selectedRoom}
+            hoveredRoom={hoveredRoom}
             highlight={highlightSet}
             lit={lit}
             kiosk={kiosk}

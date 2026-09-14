@@ -97,22 +97,8 @@
   --fill-circulation: rgba(255, 255, 255, 0.05);
   --line-circulation: rgba(255, 255, 255, 0.16);
 
-  /* the vector plan: the spaces the API does not know, its walls and fittings */
-  --plan-corridor: #1a2431;
-  --plan-lobby: #232f3f;
-  --plan-service: #2a3646;
-  --plan-storage: #2a3646;
-  --plan-wc: #2b3f57;
-  --plan-stairs: #2b3a4d;
-  --plan-lift: #303f56;
-  --plan-tech: #29323f;
-  --plan-place: #2f5f9a;
-  --plan-wall: rgba(190, 220, 245, 0.55);
-  --plan-wall-exterior: rgba(120, 190, 240, 0.85);
-  --plan-door-leaf: rgba(191, 230, 255, 0.7);
-  --plan-fitting: rgba(185, 217, 240, 0.7);
-  --plan-plant: rgba(107, 140, 174, 0.55);
-  --plan-caption: rgba(230, 240, 250, 0.82);
+  /* the plan's ground (the authoring tool's `--map-bg`), the same in both themes */
+  --map-bg: #111c29;
 
   color-scheme: dark;
 }
@@ -152,22 +138,6 @@
   --fill-soon: rgba(180, 83, 9, 0.3);
   --fill-free: rgba(11, 15, 23, 0.07);
   --fill-service: rgba(11, 15, 23, 0.03);
-
-  --plan-corridor: #dde4ee;
-  --plan-lobby: #d3dce9;
-  --plan-service: #c9d3e0;
-  --plan-storage: #c9d3e0;
-  --plan-wc: #c2d2e6;
-  --plan-stairs: #c6d1df;
-  --plan-lift: #bfcbdb;
-  --plan-tech: #cdd5df;
-  --plan-place: #7fb0e8;
-  --plan-wall: rgba(30, 45, 70, 0.55);
-  --plan-wall-exterior: rgba(20, 60, 110, 0.85);
-  --plan-door-leaf: rgba(30, 45, 70, 0.55);
-  --plan-fitting: rgba(30, 45, 70, 0.6);
-  --plan-plant: rgba(60, 85, 115, 0.45);
-  --plan-caption: rgba(16, 21, 31, 0.8);
 
   color-scheme: light;
 }
@@ -426,211 +396,159 @@ button {
   display: block;
 }
 
-.floor-svg [data-phase] {
-  transition: fill var(--dur-base) var(--ease-out), stroke var(--dur-base) var(--ease-out);
-}
-
-.floor-svg [data-phase='free'] {
-  fill: var(--fill-free);
-  stroke: rgba(255, 255, 255, 0.14);
-}
-
-.floor-svg [data-phase='live'],
-.floor-svg [data-phase='delayed'] {
-  fill: var(--fill-live);
-  stroke: rgba(45, 212, 191, 0.7);
-}
-
-.floor-svg [data-phase='ending'] {
-  fill: var(--fill-ending);
-  stroke: rgba(251, 146, 60, 0.75);
-}
-
-.floor-svg [data-phase='soon'] {
-  fill: var(--fill-soon);
-  stroke: rgba(251, 191, 36, 0.7);
-}
-
-/* a room without a timetable is still a place you can walk into */
-.floor-svg [data-phase='room'] {
-  fill: var(--fill-room);
-  stroke: rgba(255, 255, 255, 0.14);
-}
-
-/* the served zone: one recessive mass, never a destination */
-.floor-svg [data-phase='zone'] {
-  fill: var(--fill-zone);
-  stroke: rgba(255, 255, 255, 0.1);
-}
-
-/* the structures standing inside that zone, a shade lighter so they read */
-.floor-svg [data-phase='service'] {
-  fill: var(--fill-service);
-  stroke: rgba(255, 255, 255, 0.12);
-}
-
-
-.floor-svg [data-phase='void'] {
-  fill: var(--fill-void);
-  stroke: rgba(255, 255, 255, 0.22);
-  stroke-dasharray: 4 3;
-}
-
-/* the first-floor public facilities: on the plan, not on the timetable */
-.floor-svg [data-passive] {
-  stroke: none;
-}
-
 /* ------------------------------------------------------------- the vector plan
 
-   The spaces the API does not know are filled by what they are — corridor,
-   lift hall, cubicle — in one recessive family; a named place a visitor can
-   look for (the coworking, the pavilion) keeps the blue of a room. Line work is
-   drawn in plate units so it scales with the plate, thin in the stack and
-   legible in focus. */
+   The authoring tool's stylesheet (`building-vector-map/src/styles/globals.css`,
+   "слои SVG"), one for one. Its line weights were CSS pixels at a fixed zoom;
+   here they are plate units — the plan is 0.62 plate units per plan unit and
+   the focused plate shows ~1.35 px per plate unit, so 1 px there ≈ 0.75 unit
+   here. The plan is dark in both themes: it is one design, not a themed part. */
 
-.plan-space {
-  fill: var(--plan-service);
+.floor-outline-glow {
+  fill: none;
+  stroke: #4fd1ff;
+  stroke-width: 4.5;
+  opacity: 0.35;
+}
+
+.floor-outline-fill {
+  fill: #15233299;
   stroke: none;
 }
 
-.plan-space[data-space-type='corridor'] {
-  fill: var(--plan-corridor);
+.floor-svg .room {
+  stroke: none;
+  transition: filter 120ms ease, opacity 150ms ease;
 }
 
-.plan-space[data-space-type='lobby'] {
-  fill: var(--plan-lobby);
+.floor-svg .room[role='button'] {
+  cursor: pointer;
 }
 
-.plan-space[data-space-type='storage'] {
-  fill: var(--plan-storage);
+.floor-svg .room[role='button']:hover {
+  filter: brightness(1.22) saturate(1.1);
 }
 
-.plan-space[data-space-type='wc'] {
-  fill: var(--plan-wc);
+.floor-svg .room.is-selected {
+  filter: brightness(1.12);
 }
 
-.plan-space[data-space-type='stairs'] {
-  fill: var(--plan-stairs);
+.floor-svg .room.is-dimmed {
+  opacity: 0.28;
 }
 
-.plan-space[data-space-type='lift'] {
-  fill: var(--plan-lift);
+.floor-svg .room:focus-visible {
+  outline: none;
+  stroke: #4fd1ff;
+  stroke-width: 1.5;
 }
 
-.plan-space[data-space-type='tech'] {
-  fill: var(--plan-tech);
-}
-
-.plan-space[data-space-type='office'],
-.plan-space[data-space-type='class'],
-.plan-space[data-space-type='hall'],
-.plan-space[data-space-type='cafe'] {
-  fill: var(--plan-place);
-}
-
-.plan-wall {
+.wall {
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.plan-wall--interior {
-  stroke: var(--plan-wall);
-  stroke-width: 0.7;
+.wall-interior {
+  stroke: #7fc3e6;
+  stroke-width: 1.05;
 }
 
-.plan-wall--exterior {
-  stroke: var(--plan-wall-exterior);
-  stroke-width: 1.6;
+.wall-exterior {
+  stroke: #4fd1ff;
+  stroke-width: 1.95;
+  filter: drop-shadow(0 0 2.2px #4fd1ffaa);
 }
 
-.plan-door-opening {
+.wall-virtual {
+  stroke-dasharray: 3.75 3;
+  opacity: 0.6;
+}
+
+.door-opening {
   fill: none;
-  stroke: var(--slab);
-  stroke-width: 3.2;
+  stroke: #1a2838;
+  stroke-width: 4.5;
   stroke-linecap: butt;
 }
 
-.plan-door-leaf {
+.door-leaf {
   fill: none;
-  stroke: var(--plan-door-leaf);
-  stroke-width: 0.55;
+  stroke: #bfe6ff;
+  stroke-width: 0.75;
+  opacity: 0.85;
 }
 
-.plan-stairs,
-.plan-lift {
+.stairs-steps {
   fill: none;
-  stroke: var(--plan-fitting);
-  stroke-width: 0.55;
+  stroke: #b9d9f0;
+  stroke-width: 0.75;
+  opacity: 0.8;
 }
 
-.plan-stairs-arrow {
+.stairs-arrow {
   fill: none;
-  stroke: var(--plan-label);
-  stroke-width: 0.7;
+  stroke: #e6f1fb;
+  stroke-width: 0.9;
 }
 
-.plan-plant,
-.plan-shaft {
-  stroke: var(--plan-plant);
-  stroke-width: 0.5;
+.lift {
+  fill: none;
+  stroke: #b9d9f0;
+  stroke-width: 0.75;
+  opacity: 0.9;
 }
 
-/* ------------------------------------------------ wayfinding type on a plate
-
-   The plate is turned −90° about Z in the focused view, so every label is
-   counter-rotated by the same amount to read horizontally on screen. */
-
-.plan-label {
-  font-family: var(--font-ui);
-  fill: var(--plan-label);
-  text-anchor: middle;
-  dominant-baseline: central;
-  pointer-events: none;
-  paint-order: stroke fill;
-  stroke: rgba(0, 0, 0, 0.35);
-  stroke-width: 2.5;
-  stroke-linejoin: round;
+.zone-glyph {
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  fill: #cfe4f5;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  opacity: 0.8;
 }
 
-.plan-label--code {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+.zone-tech {
+  stroke: #6b8cae;
+  stroke-width: 0.45;
+  opacity: 0.55;
 }
 
-.plan-label--name {
-  font-size: 21px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+.zone-shaft {
+  stroke: #6b8cae;
+  stroke-width: 0.75;
+  opacity: 0.8;
 }
 
-.plan-label--zone {
-  font-size: 46px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  fill: var(--plan-zone);
-  stroke: none;
+.room-label text {
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  fill: #e6f1fb;
+  paint-order: stroke;
+  stroke: #0d152088;
+  stroke-width: 0.26;
+  user-select: none;
 }
 
-/* the captions of the unnamed spaces and the `WC` signs: quiet, regular weight */
-.plan-label--space,
-.plan-label--sign {
-  font-weight: 500;
-  fill: var(--plan-caption);
-  stroke-width: 1.2;
+.room-label-primary {
+  font-weight: 600;
 }
 
-.plan-label--sign {
-  font-weight: 700;
-  letter-spacing: 0.06em;
+.room-label-secondary {
+  fill: #cfe0f0;
 }
 
-.room-shape:focus-visible {
-  outline: none;
-  stroke: var(--accent);
-  stroke-width: 3;
+.label-dimmed {
+  opacity: 0.25;
+}
+
+.selection-outline {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 1.9;
+  filter: drop-shadow(0 0 3.7px #ffffff);
+}
+
+.swatch-hatch {
+  background-image: repeating-linear-gradient(45deg, transparent 0 3px, #6b8cae88 3px 4px);
 }
 
 /* ------------------------------------------------------------ scrollbar-free */

@@ -3,7 +3,7 @@ import building from '@campuslive/map-data/building-a.json';
 import type { MapSpec } from '@campuslive/contracts';
 import { samplePath } from '@/lib/map-geometry';
 import { isMapSearchableRoom } from './room-interaction';
-import { listPlaces, placeById, roomLabelAngles, searchPlaces, vectorFloors, withVectorGeometry } from './vector-map';
+import { listPlaces, placeById, roomLooks, searchPlaces, vectorFloors, withVectorGeometry } from './vector-map';
 
 const spec = building as MapSpec;
 const mapped = withVectorGeometry(spec);
@@ -87,10 +87,17 @@ describe('vector geometry adapter', () => {
     expect(vectorFloors[2]!.glyphs.some((g) => g.kind === 'shaft')).toBe(true);
   });
 
-  it('turns only the labels the plan turns', () => {
-    const angles = roomLabelAngles(1);
-    for (const angle of Object.values(angles)) expect([90, -90]).toContain(angle);
-    expect(roomLabelAngles(3)).toEqual({});
+  it("carries the plan's look of every room: kind, service or place, turned and hidden captions", () => {
+    const looks = roomLooks(1);
+    expect(Object.keys(looks).sort()).toEqual(Object.keys(vectorFloors[1]!.rooms).sort());
+    for (const look of Object.values(looks)) {
+      if (look.angle != null) expect([90, -90]).toContain(look.angle);
+    }
+    expect(looks['CORE-N1']).toMatchObject({ type: 'stairs', quiet: true });
+    expect(looks['100']).toMatchObject({ type: 'class' });
+    expect(looks['100']!.quiet).toBeUndefined();
+    expect(roomLooks(2)['VOID-2']).toMatchObject({ type: 'tech', hideLabel: true });
+    expect(roomLooks(3)).toEqual({});
   });
 });
 

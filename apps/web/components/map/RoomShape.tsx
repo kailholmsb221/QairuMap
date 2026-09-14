@@ -3,32 +3,22 @@
 import { memo } from 'react';
 import type { MapRoom } from '@campuslive/contracts';
 import type { RoomDisplayPhase } from '@/features/board/selectors';
+import { planFill } from '@/lib/plan-theme';
 import { isPassiveRoom } from '@/lib/room-interaction';
+import type { VectorLook } from '@/lib/vector-map';
 
 export type SceneMode = 'exploded' | 'focus';
 
-/**
- * How a space with no timetable is painted.
- *
- * Blue is every room a visitor can walk into — the cafe, the library, an office —
- * so they stay as legible as a lecture hall. Grey is plant and circulation: the
- * atrium hall, the technical rooms, the stair cores and the restrooms. They are
- * filled like everything else on the plan but read as what you walk through
- * rather than what you are looking for.
- */
-function quietPhase(code: string): 'service' | 'room' {
-  return /^(ATRIUM|TECH|CORE|WC)/.test(code) ? 'service' : 'room';
-}
-
 export type RoomShapeProps = {
   room: MapRoom;
+  /** How the plan draws this space: kind, service or place, caption hints. */
+  look: VectorLook;
   phase: RoomDisplayPhase;
   mode: SceneMode;
   idPrefix: string;
   selected?: boolean;
   highlighted?: boolean;
   dimmed?: boolean;
-  dimTo?: number;
   ariaLabel: string;
   interactive?: boolean;
   onSelect?: (code: string) => void;
@@ -36,19 +26,20 @@ export type RoomShapeProps = {
 };
 
 /**
- * One room polygon. The fill comes from `data-phase` through CSS variables, so a
- * phase change never rebuilds the path; the glow is a second stroked path, never
- * a filter. The same contour is the hit target.
+ * One room the API knows — the authoring tool's `RoomShape.tsx`: the contour is
+ * the fill and the hit target, painted by the plan's rules (circulation and
+ * plant by kind, everything else by status), lifted on hover, dimmed when
+ * something else is being pointed at. The selection outline is drawn by
+ * `FloorLayer` above the walls, as the tool does.
  */
 function Shape({
   room,
+  look,
   phase,
-  mode,
   idPrefix,
   selected,
   highlighted,
   dimmed,
-  dimTo = 0.5,
   ariaLabel,
   interactive = true,
   onSelect,
@@ -56,60 +47,53 @@ function Shape({
 }: RoomShapeProps) {
   const isVoid = room.type === 'void';
   const passive = isPassiveRoom(room.code);
-  const dataPhase = isVoid ? 'void' : !room.schedulable ? quietPhase(room.code) : phase;
-  const conflict = phase === 'conflict' && room.schedulable && !isVoid;
   // Every space answers to a click, not just the teaching ones: the point of the
   // plan is to find the cafe, a restroom or an office as readily as a lecture
   // hall. The atrium void is a hole, not a room, and the first-floor public
   // facilities are drawn but have no map actions (`room-interaction.ts`).
   const canInteract = interactive && !isVoid && !passive;
+  // a room without a timetable is what the plan says it is, never a live phase
+  const status = room.schedulable ? phase : undefined;
+  const cls = [
+    'room',
+    selected || highlighted ? 'is-selected' : '',
+    dimmed ? 'is-dimmed' : '',
+    status === 'soon' ? 'blink' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
-    <g opacity={dimmed ? dimTo : 1} style={{ transition: 'opacity var(--dur-base) var(--ease-out)' }}>
-      <path
-        id={`${idPrefix}room-${room.code}`}
-        className={`room-shape${dataPhase === 'soon' ? ' blink' : ''}`}
-        data-phase={conflict ? 'conflict' : dataPhase}
-        data-type={room.type}
-        data-room={room.code}
-        data-passive={passive || undefined}
-        data-highlighted={highlighted || undefined}
-        d={room.path}
-        strokeWidth={0.8}
-        {...(conflict
-          ? { fill: `url(#${idPrefix}hatch)`, stroke: 'rgba(251,146,60,.75)' }
-          : {})}
-        {...(canInteract
-          ? {
-              role: 'button',
-              tabIndex: 0,
-              'aria-label': ariaLabel,
-              'aria-pressed': !!selected,
-              onClick: () => onSelect?.(room.code),
-              onKeyDown: (e: React.KeyboardEvent) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onSelect?.(room.code);
-                }
-              },
-              onMouseEnter: () => onHover?.(room.code),
-              onMouseLeave: () => onHover?.(null),
-              onFocus: () => onHover?.(room.code),
-              onBlur: () => onHover?.(null),
-              style: { cursor: 'pointer' },
-            }
-          : { 'aria-hidden': true, pointerEvents: 'none' as const })}
-      />
-      {selected || highlighted ? (
-        <>
-          <path d={room.path} fill="none" stroke="var(--accent)" strokeWidth={10} opacity={0.22} pointerEvents="none" />
-          <path d={room.path} fill="none" stroke="var(--accent)" strokeWidth={2.5} pointerEvents="none" />
-        </>
-      ) : null}
-      {mode === 'focus' && !selected && !highlighted && (phase === 'live' || phase === 'delayed') && room.schedulable ? (
-        <path d={room.path} fill="none" stroke="var(--status-live)" strokeWidth={6} opacity={0.14} pointerEvents="none" />
-      ) : null}
-    </g>
+    <path
+      id={`${idPrefix}room-${room.code}`}
+      className={cls}
+      fill={planFill(look, status)}
+      data-phase={status ?? (look.quiet ? 'service' : 'room')}
+      data-type={room.type}
+      data-room={room.code}
+      data-passive={passive || undefined}
+      data-highlighted={highlighted || undefined}
+      d={room.path}
+      {...(canInteract
+        ? {
+            role: 'button',
+            tabIndex: 0,
+            'aria-label': ariaLabel,
+            'aria-pressed': !!selected,
+            onClick: () => onSelect?.(room.code),
+            onKeyDown: (e: React.KeyboardEvent) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onSelect?.(room.code);
+              }
+            },
+            onPointerEnter: () => onHover?.(room.code),
+            onPointerLeave: () => onHover?.(null),
+            onFocus: () => onHover?.(room.code),
+            onBlur: () => onHover?.(null),
+          }
+        : { 'aria-hidden': true, pointerEvents: 'none' as const })}
+    />
   );
 }
 

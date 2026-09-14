@@ -15,28 +15,36 @@ import type { MapSpec } from '@campuslive/contracts';
 export type BBox = { x: number; y: number; w: number; h: number };
 export type PlanPoint = { x: number; y: number };
 
-export type VectorRoom = {
-  path: string;
-  bbox: BBox;
-  label: PlanPoint;
-  /** Label rotation on screen, degrees, when the plan turns it. */
-  angle?: number;
-  source: string;
-};
-
 export type SpaceType =
   | 'office' | 'class' | 'hall' | 'corridor' | 'wc' | 'stairs' | 'lift'
   | 'service' | 'tech' | 'lobby' | 'cafe' | 'storage';
 
-export type VectorSpace = {
-  id: string;
-  name: string;
+/** What the plan says about a space's look (`VectorLook` in `vector2map.ts`). */
+export type VectorLook = {
+  /** The plan's own kind — circulation and plant are coloured by kind, everything else by status. */
   type: SpaceType;
+  /** The plan marks it as a service area (grey), not a place a visitor goes to (blue). */
+  quiet?: boolean;
+  /** Label rotation on screen, degrees, when the plan turns it. */
+  angle?: number;
+  /** A caption size the plan forces, in plate units. */
+  fontSize?: number;
+  hideLabel?: boolean;
+};
+
+export type VectorRoom = VectorLook & {
   path: string;
   bbox: BBox;
   label: PlanPoint;
-  angle?: number;
-  hideLabel?: boolean;
+  source: string;
+};
+
+export type VectorSpace = VectorLook & {
+  id: string;
+  name: string;
+  path: string;
+  bbox: BBox;
+  label: PlanPoint;
 };
 
 export type VectorWall = { d: string; exterior?: boolean; virtual?: boolean };
@@ -59,6 +67,9 @@ export type VectorFloor = {
 };
 
 export const vectorFloors: Readonly<Record<number, VectorFloor>> = data.floors as Record<number, VectorFloor>;
+
+/** Plan units → plate units; the plan's pixel sizes are scaled by this. */
+export const vectorScale: number = data.source.scale;
 
 /**
  * Keep API identity and schedule metadata; adapt only the presentation
@@ -83,12 +94,15 @@ export function withVectorGeometry(spec: MapSpec): MapSpec {
   };
 }
 
-/** `code → label rotation` for the rooms the plan turns (only a few, along narrow bays). */
-export function roomLabelAngles(floor: number): Record<string, number> {
-  const out: Record<string, number> = {};
+/** `code → look` for the rooms of a floor, as the plan draws them. */
+export function roomLooks(floor: number): Record<string, VectorLook> {
+  const out: Record<string, VectorLook> = {};
   const vec = vectorFloors[floor];
   if (!vec) return out;
-  for (const [code, room] of Object.entries(vec.rooms)) if (room.angle) out[code] = room.angle;
+  for (const [code, room] of Object.entries(vec.rooms)) {
+    const { type, quiet, angle, fontSize, hideLabel } = room;
+    out[code] = { type, quiet, angle, fontSize, hideLabel };
+  }
   return out;
 }
 

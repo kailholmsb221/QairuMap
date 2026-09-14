@@ -1,11 +1,13 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import type { MapFloor, RoomLiveState } from '@campuslive/contracts';
 import type { RoomDisplayPhase } from '@/features/board/selectors';
+import { useRoomName } from '@/features/rooms/useRoomName';
+import { STATUS_COLORS, phaseStatus } from '@/lib/plan-theme';
 import { isPassiveRoom } from '@/lib/room-interaction';
-import { vectorFloors } from '@/lib/vector-map';
-import { PlanLabels } from './PlanLabels';
+import { roomLooks, vectorFloors, type VectorLook } from '@/lib/vector-map';
+import { PlanCaption } from './PlanCaption';
 import { RoomShape, type SceneMode } from './RoomShape';
 import { VectorOver, VectorUnder } from './VectorPlan';
 
@@ -22,6 +24,7 @@ export type FloorLayerProps = {
   width: number;
   height: number;
   selected?: string | null;
+  hovered?: string | null;
   /** Room codes and space ids to point at. */
   highlight?: ReadonlySet<string>;
   dots?: boolean;
@@ -33,10 +36,18 @@ export type FloorLayerProps = {
   onHover?: (code: string | null) => void;
 };
 
+/** Spaces that carry no number on the plan: the caption is the name alone. */
+const UNNUMBERED = /^(ATRIUM|CORE|TECH|VOID)/;
+/** Restrooms are signed, not numbered — exactly as the plan prints them. */
+const SIGNED: Record<string, string> = { 'WC-1': 'WC', 'WC-2': 'WC', 'WC-N2': 'WC', 'WC-S2': 'WC' };
+
+const FALLBACK_LOOK: VectorLook = { type: 'office' };
+
 /**
- * One floor plate, bottom to top: the slab and the unnamed spaces, the rooms
- * the API knows (coloured by phase), the walls and doors, the captions, and in
- * the exploded stack the status dots.
+ * One floor plate in the authoring tool's layer order: the floor and the
+ * unnamed spaces, the rooms the API knows (painted by phase), the walls, the
+ * doors and fittings, the captions, the selection outline — and, in the
+ * exploded stack, the status dots.
  */
 function Layer({
   floor,
@@ -46,6 +57,7 @@ function Layer({
   width,
   height,
   selected,
+  hovered,
   highlight,
   dots,
   interactive = true,
@@ -55,15 +67,17 @@ function Layer({
   onHover,
 }: FloorLayerProps) {
   const idPrefix = `f${floor.number}-`;
+  const roomName = useRoomName();
+  const looks = useMemo(() => roomLooks(floor.number), [floor.number]);
   const vec = vectorFloors[floor.number];
   if (!vec) return null;
   const hl = highlight ?? new Set<string>();
-  const dimOthers = hl.size > 0 || !!selected;
-  const dimTo = hl.size > 0 ? 0.35 : 0.5;
+  const dimOthers = hl.size > 0;
+  const pointed = (code: string) => selected === code || hl.has(code);
 
   return (
     <svg
-      className="floor-svg"
+      className="floor-svg map-svg"
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 600 1000"
       width={width}
@@ -74,63 +88,70 @@ function Layer({
       aria-hidden={interactive ? undefined : true}
       style={{ display: 'block' }}
     >
-      <defs>
-        <pattern
-          id={`${idPrefix}hatch`}
-          width="8"
-          height="8"
-          patternUnits="userSpaceOnUse"
-          patternTransform="rotate(45)"
-        >
-          <rect width="8" height="8" fill="rgba(251,146,60,.18)" />
-          <line x1="0" y1="0" x2="0" y2="8" stroke="rgba(251,146,60,.7)" strokeWidth="2" />
-        </pattern>
-      </defs>
+      <VectorUnder floor={vec} idPrefix={idPrefix} highlight={hl} dimmed={dimOthers} />
 
-      <VectorUnder floor={vec} idPrefix={idPrefix} highlight={hl} dimmed={dimOthers} dimTo={dimTo} />
-
-      <g id={`${idPrefix}rooms`}>
-        {floor.rooms.map((room) => {
-          const isSel = selected === room.code;
-          const isHl = hl.has(room.code);
-          return (
-            <RoomShape
-              key={room.code}
-              room={room}
-              phase={phases[room.code] ?? 'free'}
-              mode={mode}
-              idPrefix={idPrefix}
-              selected={isSel}
-              highlighted={isHl}
-              dimmed={dimOthers && !isSel && !isHl}
-              dimTo={dimTo}
-              interactive={interactive}
-              ariaLabel={label(room, states[room.code])}
-              onSelect={onSelect}
-              onHover={onHover}
-            />
-          );
-        })}
+      {/* 2. the rooms the timetable knows */}
+      <g id={`${idPrefix}rooms`} className="rooms rooms-main">
+        {floor.rooms.map((room) => (
+          <RoomShape
+            key={room.code}
+            room={room}
+            look={looks[room.code] ?? FALLBACK_LOOK}
+            phase={phases[room.code] ?? 'free'}
+            mode={mode}
+            idPrefix={idPrefix}
+            selected={selected === room.code}
+            highlighted={hl.has(room.code)}
+            dimmed={dimOthers && !pointed(room.code)}
+            interactive={interactive}
+            ariaLabel={label(room, states[room.code])}
+            onSelect={onSelect}
+            onHover={onHover}
+          />
+        ))}
       </g>
 
-      <VectorOver floor={vec} idPrefix={idPrefix} detail={!!labels} />
+      <VectorOver floor={vec} idPrefix={idPrefix} detail={!!labels} highlight={hl} dimmed={dimOthers} />
 
-      {labels ? <PlanLabels floor={floor} idPrefix={idPrefix} /> : null}
+      {labels ? (
+        <g id={`${idPrefix}plan-labels`} className="labels" pointerEvents="none" aria-hidden="true">
+          {floor.rooms.map((room) => {
+            const number = UNNUMBERED.test(room.code) ? '' : (SIGNED[room.code] ?? room.code);
+            return (
+              <PlanCaption
+                key={room.code}
+                number={number}
+                name={roomName(room.code, room.name)}
+                bbox={room.bbox}
+                label={room.label}
+                look={looks[room.code] ?? FALLBACK_LOOK}
+                forceShow={pointed(room.code) || hovered === room.code}
+                dimmed={dimOthers && !pointed(room.code)}
+              />
+            );
+          })}
+        </g>
+      ) : null}
+
+      {/* 9. the selection outline, above everything */}
+      <g id={`${idPrefix}selection`} className="selection" pointerEvents="none">
+        {floor.rooms.map((room) =>
+          pointed(room.code) ? <path key={room.code} d={room.path} className="selection-outline" /> : null,
+        )}
+        {vec.spaces.map((s) =>
+          hl.has(s.id) ? <path key={s.id} d={s.path} className="selection-outline" /> : null,
+        )}
+      </g>
 
       {dots ? (
         <g id={`${idPrefix}dots`} pointerEvents="none">
           {floor.rooms.map((room) => {
-            const phase = states[room.code]?.phase;
+            const phase = phases[room.code];
             if (isPassiveRoom(room.code) || !room.schedulable || !phase || phase === 'free') return null;
-            const colour =
-              phase === 'ending'
-                ? 'var(--status-ending)'
-                : phase === 'soon'
-                  ? 'var(--status-soon)'
-                  : 'var(--status-live)';
-            const dimmed = dimOthers && selected !== room.code && !hl.has(room.code);
+            const colour = STATUS_COLORS[phaseStatus(phase)];
+            const dimmed = dimOthers && !pointed(room.code);
             return (
-              <g key={room.code} opacity={dimmed ? dimTo : 1}>
+              <g key={room.code} opacity={dimmed ? 0.28 : 1}>
                 <circle
                   cx={room.label.x}
                   cy={room.label.y}

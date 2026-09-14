@@ -72,7 +72,7 @@ export async function deleteOverride(request: APIRequestContext, id: string): Pr
  * design intends: picking a search hit highlights the rooms and filters the board.
  */
 export async function filterBoard(page: Page, code: string): Promise<void> {
-  await page.getByTestId('search-trigger').click();
+  await openSearch(page);
   await page.getByTestId('search-input').fill(code);
   const hit = page.getByTestId(`search-item-${code}`);
   await hit.waitFor({ state: 'visible' });
@@ -80,6 +80,24 @@ export async function filterBoard(page: Page, code: string): Promise<void> {
   await page.getByTestId('board-filter').waitFor({ state: 'visible' });
   // let the exiting rows finish their 300 ms leave animation
   await page.waitForTimeout(500);
+}
+
+/** The header carries no search button; ⌘K / Ctrl+K opens the palette. */
+export async function openSearch(page: Page): Promise<void> {
+  await page.keyboard.press('Control+k');
+  await page.getByTestId('search-input').waitFor({ state: 'visible' });
+}
+
+/**
+ * Enter the focused view of a floor. The header has no floor tabs; the plate's
+ * own `F1 · n busy` label in the exploded stack is the way in.
+ */
+export async function focusFloor(page: Page, floor: number): Promise<void> {
+  await page.getByTestId(`floor-label-${floor}`).click();
+  await page.mouse.move(0, 0);
+  await page.waitForFunction(
+    () => document.querySelector('[data-testid="scene"]')?.getAttribute('data-mode') === 'focus',
+  );
 }
 
 /** The app is ready once the board has painted its first row. */

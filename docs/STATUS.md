@@ -2,6 +2,20 @@
 
 ## Vector Map Update (2026-09-14)
 
+**Second pass, same day.** The plate now wears the authoring tool's own design,
+one for one (`apps/web/lib/plan-theme.ts` = its `theme.ts`, the plan rules in
+`globals.css` = its stylesheet, `PlanCaption` = its `RoomLabel`): the cyan
+glowing façade over `#111c29`, light-blue walls with the exterior glow, door
+leaves and swings, the status palette (busy `#1f8f7d`, ending `#c9651c`, soon
+`#c99a1c`, free `#2d6fd6`, service `#3b4b60`) with corridors / restrooms /
+cores by kind, captions number-over-name on every space, brightness on hover,
+the white glowing outline on the selected or searched space, `0.28` dimming of
+everything else, and its legend. The plan is dark in both themes. The header
+keeps only the brand and the clock: floor tabs, the search button, the language
+switch, the theme toggle and the kiosk link are no longer rendered — ⌘K opens
+search, the `F1 · n busy` plate labels enter focus (`e2e/helpers.ts` has
+`openSearch` / `focusFloor`, `e2e/header.spec.ts` pins it).
+
 The two photographed plates are replaced by the hand-digitised **vector plans**
 (`packages/map-data/vector/floor-{1,2}.json`, built into `vector-map.json` by
 `vector2map.ts`). The 2.5D scene, the exploded stack, focus, parallax, search,

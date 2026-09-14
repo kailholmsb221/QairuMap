@@ -81,7 +81,10 @@
       "ending": "Ending (last 5 min)",
       "soon": "Starts within 10 min",
       "free": "Free",
-      "service": "Service area"
+      "service": "Service area",
+      "corridors": "Corridors and halls",
+      "wc": "Restrooms",
+      "cores": "Stairs, lifts, plant"
     },
     "tooltipHint": "CLICK FOR DETAILS · ↵",
     "until": "until {time}",

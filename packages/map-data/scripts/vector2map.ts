@@ -36,7 +36,7 @@ import {
   stairsPaths,
   wallPath,
 } from './vector/geometry';
-import type { FloorPlan, Point, SpaceType } from './vector/plan';
+import type { FloorPlan, PlanRoom, Point, SpaceType } from './vector/plan';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = resolve(HERE, '..');
@@ -129,25 +129,33 @@ const ROOM_SOURCES: Record<number, Record<string, string>> = {
 
 export type BBox = { x: number; y: number; w: number; h: number };
 
-export type VectorRoom = {
+/** What the plan says about a space's look: its kind, and whether it is plant rather than a place. */
+export type VectorLook = {
+  /** The plan's own kind — circulation and plant are coloured by kind, everything else by status. */
+  type: SpaceType;
+  /** The plan marks it as a service area (grey), not a place a visitor goes to (blue). */
+  quiet?: true;
+  /** Label rotation on screen, degrees, when the plan turns it. */
+  angle?: number;
+  /** A caption size the plan forces, in plate units. */
+  fontSize?: number;
+  hideLabel?: true;
+};
+
+export type VectorRoom = VectorLook & {
   path: string;
   bbox: BBox;
   label: Point;
-  /** Label rotation on screen, degrees, when the plan turns it. */
-  angle?: number;
   /** Room id in `vector/floor-{n}.json`. */
   source: string;
 };
 
-export type VectorSpace = {
+export type VectorSpace = VectorLook & {
   id: string;
   name: string;
-  type: SpaceType;
   path: string;
   bbox: BBox;
   label: Point;
-  angle?: number;
-  hideLabel?: boolean;
 };
 
 export type VectorWall = { d: string; exterior?: true; virtual?: true };
@@ -211,7 +219,14 @@ function transformPlan(plan: FloorPlan, f: Frame): FloorPlan {
   return {
     ...plan,
     points,
-    rooms: plan.rooms.map((r) => ({ ...r, label: { ...r.label, ...toPlate(f, r.label) } })),
+    rooms: plan.rooms.map((r) => ({
+      ...r,
+      label: {
+        ...r.label,
+        ...toPlate(f, r.label),
+        ...(r.label.fontSize ? { fontSize: round(r.label.fontSize * f.s) } : {}),
+      },
+    })),
     doors: plan.doors.map((d) => ({ ...d, width: d.width * f.s })),
     specialZones: plan.specialZones.map((z) =>
       z.angle == null ? z : { ...z, angle: z.angle + 90 },
@@ -222,6 +237,14 @@ function transformPlan(plan: FloorPlan, f: Frame): FloorPlan {
 /* -------------------------------------------------------------------------- */
 /* Build                                                                      */
 /* -------------------------------------------------------------------------- */
+
+const look = (r: PlanRoom): VectorLook => ({
+  type: r.type,
+  ...(r.status === 'service' ? { quiet: true as const } : {}),
+  ...(r.label.angle ? { angle: r.label.angle } : {}),
+  ...(r.label.fontSize ? { fontSize: r.label.fontSize } : {}),
+  ...(r.hideLabel ? { hideLabel: true as const } : {}),
+});
 
 const toBBox = (pts: Point[]): BBox => {
   const b = bbox(pts);
@@ -249,10 +272,10 @@ function buildFloor(number: number, source: FloorPlan, f: Frame, codes: string[]
     taken.set(id, code);
     const poly = boundaryPolyline(plan, room.boundary);
     rooms[code] = {
+      ...look(room),
       path: buildRoomPath(plan, room.boundary),
       bbox: toBBox(poly),
       label: { x: room.label.x, y: room.label.y },
-      ...(room.label.angle ? { angle: room.label.angle } : {}),
       source: id,
     };
   }
@@ -263,14 +286,12 @@ function buildFloor(number: number, source: FloorPlan, f: Frame, codes: string[]
   const spaces: VectorSpace[] = plan.rooms
     .filter((r) => !taken.has(r.id))
     .map((r) => ({
+      ...look(r),
       id: r.id,
       name: r.name,
-      type: r.type,
       path: buildRoomPath(plan, r.boundary),
       bbox: toBBox(boundaryPolyline(plan, r.boundary)),
       label: { x: r.label.x, y: r.label.y },
-      ...(r.label.angle ? { angle: r.label.angle } : {}),
-      ...(r.hideLabel ? { hideLabel: true } : {}),
     }));
 
   const walls: VectorWall[] = Object.values(plan.walls).map((w) => ({

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { waitForApp } from './helpers';
+import { waitForApp, focusFloor } from './helpers';
 
 test('floor tab 2 enters focus view and room 226 opens the detail panel', async ({ page }) => {
   await page.goto('/');
@@ -8,7 +8,7 @@ test('floor tab 2 enters focus view and room 226 opens the detail panel', async 
   const scene = page.getByTestId('scene');
   await expect(scene).toHaveAttribute('data-mode', 'exploded');
 
-  await page.getByTestId('floor-tab-2').click();
+  await focusFloor(page, 2);
   await expect(scene).toHaveAttribute('data-mode', 'focus');
 
   // the room itself is the target — the plate prints the number, not a chip

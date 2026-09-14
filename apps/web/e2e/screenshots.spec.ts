@@ -1,7 +1,7 @@
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
-import { waitForApp } from './helpers';
+import { waitForApp, focusFloor, openSearch } from './helpers';
 
 /**
  * Not assertions — this project writes the documentation screenshots into
@@ -28,7 +28,7 @@ test('02 floor 2 focus with room 226 selected', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto('/');
   await waitForApp(page);
-  await page.getByTestId('floor-tab-2').click();
+  await focusFloor(page, 2);
   await page.waitForTimeout(1200);
   await page.locator('[data-room="226"]').click();
   await page.waitForTimeout(1200);
@@ -39,7 +39,7 @@ test('03 search highlight', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto('/');
   await waitForApp(page);
-  await page.getByTestId('search-trigger').click();
+  await openSearch(page);
   await page.getByTestId('search-input').fill('Группа 13');
   await page.getByTestId('search-item-Группа 13').waitFor();
   await page.waitForTimeout(600);

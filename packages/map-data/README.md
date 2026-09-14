@@ -167,7 +167,10 @@ The output has two kinds of thing per floor:
 | `spaces[]` | every other space the plan draws (corridors, lift halls, the coworking, the pavilion …) | `VectorPlan`: filled by type, captioned in focus, no status, no panel; the named ones are searchable as *places* |
 
 plus the `walls`, `doors` and `glyphs` (stairs, lifts, `WC` signs, hatched plant
-rooms) of the whole floor.
+rooms) of the whole floor. Each room and space also carries the plan's own
+*look* — its `type`, whether it is a `quiet` service area, a turned or hidden
+caption — because the app paints the plate exactly as the authoring tool does
+(`apps/web/lib/plan-theme.ts`).
 
 `ROOM_SOURCES` in `vector2map.ts` says which drawn space carries which code.
 Numbered spaces map by their printed number; the plan prints `102` and `226`
