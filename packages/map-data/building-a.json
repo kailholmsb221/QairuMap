@@ -815,7 +815,7 @@
         {
           "id": "da4af42b-c804-507d-a450-b8bb7cd509c2",
           "code": "209",
-          "name": "Vice-Rectors' Reception",
+          "name": "Vice-Rectors' Reception Office",
           "type": "admin",
           "wing": "north",
           "schedulable": false,
@@ -975,7 +975,7 @@
         {
           "id": "a10eec0e-65ce-5d02-8b26-433d224f4e9f",
           "code": "217",
-          "name": "Dept. of Marketing and PR",
+          "name": "Department of Marketing and Public Relations",
           "type": "admin",
           "wing": "south",
           "schedulable": false,

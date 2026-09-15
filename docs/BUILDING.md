@@ -81,7 +81,7 @@ each room sits on. That is descriptive; the `wing` column is the contract value.
 | `206` | Ректордың қабылдау бөлмесі | Rector's Reception Office | admin | north | north | 6 | нет |
 | `207` | Ректор Тоқсанов Сапар Нұрахметұлы | Rector Sapar Toksanov | admin | north | north | 8 | нет |
 | `208` | Бірінші проректор Өмірбаев Серік Мәуленұлы | First Vice-Rector Serik Omirbayev | admin | north | north (outer) | 8 | нет |
-| `209` | Проректорлардың қабылдау бөлмесі | Vice-Rectors' Reception | admin | north | north | 6 | нет |
+| `209` | Проректорлардың қабылдау бөлмесі | Vice-Rectors' Reception Office | admin | north | north | 6 | нет |
 | `210` | Кабинет 210 | Office 210 | admin | north | north | 6 | нет |
 | `211` | Кабинет 211 | Office 211 | admin | north | north (outer) | 6 | нет |
 | `212` | Кабинет 212 | Office 212 | admin | north | north (outer) | 6 | нет |
@@ -89,7 +89,7 @@ each room sits on. That is descriptive; the `wing` column is the contract value.
 | `214` | Бухгалтерлік есеп департаменті | Accounting Department | admin | north | east | 12 | нет |
 | `215` | Кабинет 215 | Office 215 | admin | north | east | 8 | нет |
 | `AI-LAB` | AI зертханасы | AI Lab | lab | core | east | 25 | **да** |
-| `217` | Маркетинг және қоғаммен байланыс департаменті | Dept. of Marketing and PR | admin | south | east | 12 | нет |
+| `217` | Маркетинг және қоғаммен байланыс департаменті | Department of Marketing and Public Relations | admin | south | east | 12 | нет |
 | `218` | Білім беру бағдарламалары мектебі | School of Educational Programs | admin | south | east | 14 | нет |
 | `219` | Дәріс аудиториясы | Lecture Hall | lecture | south | east | 100 | **да** |
 | `220` | Қызметтік бөлме | Staff Room | service | south | south | 8 | нет |
